@@ -70,26 +70,37 @@ Dit start automatisch:
 1. 🔗 **Hardhat local blockchain** (localhost:8545)
 2. 📜 **Deploy contracts** (USDT + IntegratedCottonDPP)
 3. 🔐 **Setup roles** (Boer, Transporteur, Certificeerder, Fabriek)
-4. � **Mint USDT** (100,000 naar elk account)
+4. 💵 **Mint USDT** (100,000 naar elk account)
 5. 📝 **Register DIDs** (Alle stakeholders)
-6. 🖥️ **Backend server** (localhost:3001)
-7. 🌐 **Frontend server** (localhost:8000)
+6. � **DID Registration Service** (localhost:3002) - **NEW!**
+7. �🖥️ **Backend server** (localhost:3001)
+8. 🌐 **Frontend server** (localhost:8000)
 
 ### 🌐 Access Points
 
-**Stakeholder Dashboard (Role-based):**
+**🔐 DID Management (NEW - Verification System):**
+```
+http://localhost:8000/did-management.html
+```
+
+**👥 Stakeholder Dashboard (Role-based):**
 ```
 http://localhost:8000/stakeholder.html
 ```
 
-**Complete Flow Demo:**
+**🔄 Complete Flow Demo:**
 ```
 http://localhost:8000/integrated.html
 ```
 
-**Public DPP Viewer:**
+**📱 Public DPP Viewer:**
 ```
 http://localhost:8000/dpp-viewer.html
+```
+
+**🔌 DID Service API:**
+```
+http://localhost:3002/health
 ```
 
 ## 🔧 Manual Setup (indien gewenst)
@@ -201,7 +212,114 @@ http://localhost:8000/dpp-viewer.html
 - 🔬 **Certificeerder:** `did:cotton:certifier`
 - 🏭 **Fabriek:** `did:cotton:factory`
 
-## 📜 Verifiable Credentials (VC)
+## � DID Registration Service (Verification System)
+
+### 🎯 Overzicht
+De DID Registration Service is een **aparte TypeScript service** die draait op **port 3002** en zorgt voor **geverifieerde identiteitsregistratie** via een verificatiecode-flow.
+
+### 🏗️ Architectuur
+```
+did-service/
+├── src/
+│   ├── server.ts        # Express API server
+│   └── blockchain.ts    # Wallet creation & DID generation
+├── data/
+│   └── registrations.json   # Persistent storage
+└── package.json         # Dependencies (Express, Ethers, TypeScript)
+```
+
+### 🔄 Verification Flow
+
+#### **Stap 1: Request Verification Code**
+```javascript
+POST http://localhost:3002/api/request-verification
+{
+  "naam": "Jan de Vries",
+  "bedrijfsnaam": "Katoenfarm De Vries",
+  "urn": "urn:kvk:12345678",
+  "email": "jan@katoenfarm.nl",
+  "telefoon": "+31612345678",
+  "didType": "farmer"
+}
+```
+**Response:**
+```javascript
+{
+  "success": true,
+  "message": "Verification code sent to email",
+  "code": "123456"  // In productie: via email!
+}
+```
+
+#### **Stap 2: Verify Code & Create Wallet**
+```javascript
+POST http://localhost:3002/api/verify-and-create-wallet
+{
+  "verificationCode": "123456"
+}
+```
+**Response:**
+```javascript
+{
+  "success": true,
+  "registration": {
+    "did": "did:ethr:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+    "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+    "privateKey": "0x...",  // Bewaar dit veilig!
+    "naam": "Jan de Vries",
+    "bedrijfsnaam": "Katoenfarm De Vries",
+    "urn": "urn:kvk:12345678",
+    "didType": "farmer",
+    "verified": true,
+    "timestamp": "2024-11-02T19:30:00.000Z",
+    "didDocument": {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": "did:ethr:0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+      "verificationMethod": [ /* ... */ ]
+    }
+  }
+}
+```
+
+### 🎨 Frontend Integration
+**Toegang via:** `http://localhost:8000/did-management.html`
+
+**Functionaliteit:**
+1. **Register Form** - Vul gegevens in, ontvang code
+2. **Verify Section** - Voer code in, krijg wallet
+3. **View All DIDs** - Bekijk alle registraties
+4. **Resolve DID** - Zoek DID informatie
+
+**Frontend gebruikt:**
+- DID Service API (port 3002) voor verificatie
+- IntegratedCottonDPP contract voor on-chain registratie
+
+### 🔌 API Endpoints
+
+| Endpoint | Method | Doel |
+|----------|--------|------|
+| `/health` | GET | Health check |
+| `/api/request-verification` | POST | Request verificatiecode |
+| `/api/verify-and-create-wallet` | POST | Verify code & create wallet |
+| `/api/registrations` | GET | Alle registraties (zonder private keys) |
+| `/api/search?q=<query>` | GET | Zoek naar DID/URN/naam |
+| `/api/resolve-did/:did` | GET | Resolve DID naar info |
+
+### 🔒 Security Features
+- ✅ **6-digit verification code** (10 min expiry)
+- ✅ **URN uniqueness check** (prevent duplicates)
+- ✅ **Private key generation** (secure random wallet)
+- ✅ **Blockchain integration** (DID on-chain)
+- ⚠️ **Note:** Email simulatie in console (prod: real SMTP)
+
+### 🎯 Gebruik in Supply Chain
+1. **Nieuwe stakeholder** registreert via did-management.html
+2. **Ontvangt verificatiecode** (console of email)
+3. **Verifieert en krijgt wallet** met DID
+4. **Admin grant roles** via setup.js of stakeholder dashboard
+5. **Stakeholder kan nu batches aanmaken** met geverifieerde identiteit
+
+## �📜 Verifiable Credentials (VC)
 
 ### VC Types
 - **OrganicCertificate** - Biologische certificering

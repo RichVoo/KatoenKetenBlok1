@@ -1,0 +1,116 @@
+﻿<!DOCTYPE html>
+<html lang='nl'>
+<head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width,initial-scale=1'>
+    <title>DID Registratie</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 40px 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 8px 30px rgba(0,0,0,0.12); margin-bottom: 20px; }
+        .header { color: #fff; text-align: center; margin-bottom: 24px; }
+        .header h1 { font-size: 2.5rem; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 1.1rem; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; color: #333; font-weight: 600; }
+        input, select { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #ddd; font-size: 14px; box-sizing: border-box; }
+        .button { display: inline-block; padding: 14px 24px; border-radius: 8px; background: #667eea; color: #fff; border: none; font-weight: 700; cursor: pointer; font-size: 16px; }
+        .button:hover { background: #5568d3; }
+        .button-secondary { background: #6b7280; }
+        .button-secondary:hover { background: #4b5563; }
+        .info { margin-top: 16px; padding: 16px; border-radius: 8px; background: #f0f9ff; border: 1px solid #bae6fd; }
+        .pre { background: #0f172a; color: #10b981; padding: 12px; border-radius: 8px; font-family: monospace; word-break: break-all; white-space: pre-wrap; font-size: 13px; margin-top: 8px; }
+        .hidden { display: none !important; }
+        .back-link { color: #fff; display: inline-block; margin-bottom: 16px; text-decoration: none; font-weight: 600; }
+        .back-link:hover { text-decoration: underline; }
+        .did-list { margin-top: 16px; max-height: 300px; overflow-y: auto; }
+        .did-item { background: #f9fafb; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #667eea; }
+        .did-item strong { display: block; color: #1f2937; margin-bottom: 4px; }
+        .did-item small { color: #6b7280; font-size: 12px; display: block; margin-top: 4px; }
+        .role-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+        .role-farmer { background: #d1fae5; color: #065f46; }
+        .role-processor { background: #dbeafe; color: #1e40af; }
+        .role-manufacturer { background: #fef3c7; color: #92400e; }
+        .role-retailer { background: #ede9fe; color: #5b21b6; }
+        .role-auditor { background: #fee2e2; color: #991b1b; }
+        @media(max-width:720px) { .form-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <a href='stakeholder.html' class='back-link'>← Terug naar Dashboard</a>
+        <div class='header'>
+            <h1>🔐 DID Registratie</h1>
+            <p>Maak een wallet aan en registreer je DID op de blockchain</p>
+        </div>
+        
+        <div class='card'>
+            <div id='form-step'>
+                <div class='form-row'>
+                    <div class='form-group'>
+                        <label>Volledige naam *</label>
+                        <input id='naam' placeholder='Jan de Vries'>
+                    </div>
+                    <div class='form-group'>
+                        <label>Bedrijfsnaam *</label>
+                        <input id='bedrijfsnaam' placeholder='Boerderij De Groene Weide'>
+                    </div>
+                </div>
+                <div class='form-row'>
+                    <div class='form-group'>
+                        <label>URN *</label>
+                        <input id='urn' placeholder='UDYAM-UP-12-0001234'>
+                    </div>
+                    <div class='form-group'>
+                        <label>Rol in Supply Chain *</label>
+                        <select id='role'>
+                            <option value='farmer'>🌾 Boer (Farmer)</option>
+                            <option value='processor'>🏭 Verwerker (Processor)</option>
+                            <option value='manufacturer'>🏗️ Fabrikant (Manufacturer)</option>
+                            <option value='retailer'>🏪 Detailhandelaar (Retailer)</option>
+                            <option value='auditor'>🔍 Auditor</option>
+                        </select>
+                    </div>
+                </div>
+                <div class='form-group'>
+                    <label>Email</label>
+                    <input id='contact' type='email' placeholder='jan@example.com'>
+                </div>
+                <button id='registerBtn' class='button'>Registreer DID</button>
+            </div>
+
+            <div id='progress-step' class='hidden'>
+                <h3>Voortgang</h3>
+                <div class='info'>Wallet wordt aangemaakt en DID wordt geregistreerd...</div>
+            </div>
+
+            <div id='result-step' class='hidden'>
+                <h3>✅ Registratie Succesvol!</h3>
+                <div class='info'>
+                    <p><strong>DID:</strong></p>
+                    <div class='pre' id='out-did'></div>
+                    <p><strong>Wallet Address:</strong></p>
+                    <div class='pre' id='out-address'></div>
+                    <p><strong>Private Key (BEWAAR DIT VEILIG!):</strong></p>
+                    <div class='pre' id='out-key'></div>
+                    <p><strong>Transaction Hash:</strong></p>
+                    <div class='pre' id='out-tx'></div>
+                </div>
+                <button id='newBtn' class='button' style='margin-top:16px'>Nieuwe Registratie</button>
+                <a href='stakeholder.html' class='button' style='margin-left:8px;background:#10b981;text-decoration:none'>Ga naar Dashboard</a>
+            </div>
+        </div>
+
+        <!-- Registered DIDs List -->
+        <div class='card'>
+            <h2 style='color:#333;margin-bottom:16px'>👥 Geregistreerde DIDs</h2>
+            <button id='refreshBtn' class='button button-secondary' style='margin-bottom:16px'>🔄 Ververs Lijst</button>
+            <div id='did-list' class='did-list'>
+                <p style='color:#6b7280;text-align:center'>Laden...</p>
+            </div>
+        </div>
+    </div>
+    <script src='register-app.js'></script>
+</body>
+</html>

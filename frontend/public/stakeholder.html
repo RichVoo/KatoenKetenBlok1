@@ -74,15 +74,37 @@
         
         .task-list { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 15px 0; }
         .task-item { padding: 10px; margin: 10px 0; background: white; border-radius: 6px; border-left: 4px solid #667eea; }
+        
+        .alert { padding: 15px; border-radius: 8px; margin: 10px 0; }
+        .alert-success { background: #d1fae5; border: 1px solid #10b981; color: #065f46; }
+        .alert-error { background: #fee2e2; border: 1px solid #ef4444; color: #991b1b; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <div style="margin-bottom: 20px;">
             <h1 style="margin: 0;">🌾 Katoen Supply Chain Dashboard</h1>
-            <a href="dpp-viewer.html" target="_blank" class="button button-success" style="text-decoration: none; width: auto; padding: 12px 24px; font-size: 15px;">📱 DPP Viewer</a>
         </div>
         
+        <!-- Import Custom Wallet -->
+        <div class="card">
+            <h2>🔐 Import DID Wallet (Optioneel)</h2>
+            <p style="color: #666; margin-bottom: 15px;">
+                Nog geen DID? Gebruik dan eerst de knop hieronder om een nieuwe DID aan te maken. Je krijgt dan een private key die je hier kunt importeren.
+            </p>
+            <a href="register.html" target="_blank">
+                <button class="button button-success" style="margin-bottom: 20px;">
+                    ➕ Nieuwe DID Aanmaken
+                </button>
+            </a>
+            <div class="form-group">
+                <label>Private Key (van je geregistreerde DID):</label>
+                <input type="password" id="customPrivateKey" placeholder="0x..." style="font-family: monospace;">
+            </div>
+            <button class="button" onclick="importCustomWallet()">Import Wallet</button>
+            <div id="importResult" style="margin-top: 10px;"></div>
+        </div>
+
         <!-- Role Selection -->
         <div class="role-selector">
             <h2 style="border: none; padding: 0; margin-bottom: 20px;">Selecteer uw rol:</h2>
@@ -111,6 +133,11 @@
                     <div class="role-icon">🏭</div>
                     <div class="role-name">Fabriek</div>
                     <div class="role-desc">Verwerking & Productie</div>
+                </div>
+                <div class="role-card" onclick="selectRole('custom', -1)">
+                    <div class="role-icon">🔑</div>
+                    <div class="role-name">Custom DID</div>
+                    <div class="role-desc">Geïmporteerde Wallet</div>
                 </div>
             </div>
         </div>

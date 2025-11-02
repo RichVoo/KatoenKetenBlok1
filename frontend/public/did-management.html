@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DID Management - Cotton Supply Chain</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; color: white; margin-bottom: 30px; font-size: 2.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        
+        .card { background: white; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); }
+        h2 { color: #333; margin-bottom: 20px; font-size: 24px; border-left: 4px solid #667eea; padding-left: 15px; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; color: #555; font-weight: 500; margin-bottom: 8px; font-size: 14px; }
+        input, select { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: border-color 0.3s ease; }
+        input:focus, select:focus { outline: none; border-color: #667eea; }
+        
+        .button { width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .button:hover { background: #5568d3; transform: translateY(-2px); }
+        .button-success { background: #10b981; }
+        .button-success:hover { background: #059669; }
+        
+        .alert { padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .alert-success { background: #d1fae5; border: 2px solid #10b981; color: #065f46; }
+        .alert-error { background: #fee2e2; border: 2px solid #ef4444; color: #991b1b; }
+        .alert-info { background: #dbeafe; border: 2px solid #3b82f6; color: #1e40af; }
+        
+        .did-list { margin-top: 20px; }
+        .did-item { background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 10px; border-left: 4px solid #667eea; }
+        .did-item strong { color: #2c3e50; display: block; margin-bottom: 5px; }
+        .did-item span { color: #555; font-size: 14px; }
+        
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
+        .nav-button { flex: 1; padding: 12px; background: white; color: #667eea; border: 2px solid #667eea; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.3s; text-decoration: none; text-align: center; display: block; }
+        .nav-button:hover { background: #667eea; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 DID Management System</h1>
+        
+        <div class="nav-buttons">
+            <a href="stakeholder.html" class="nav-button">← Stakeholder Dashboard</a>
+            <a href="integrated.html" class="nav-button">Complete Flow</a>
+            <a href="dpp-viewer.html" class="nav-button">DPP Viewer</a>
+        </div>
+
+        <!-- Register New DID -->
+        <div class="card">
+            <h2>📝 Register New DID</h2>
+            <div id="registerResult"></div>
+            
+            <div class="form-group">
+                <label>Naam *</label>
+                <input type="text" id="regNaam" placeholder="Volledige naam">
+            </div>
+            
+            <div class="form-group">
+                <label>Bedrijfsnaam *</label>
+                <input type="text" id="regBedrijf" placeholder="Bedrijfsnaam">
+            </div>
+            
+            <div class="form-group">
+                <label>URN (Unique Resource Name) *</label>
+                <input type="text" id="regUrn" placeholder="bijv: urn:kvk:12345678">
+            </div>
+            
+            <div class="form-group">
+                <label>Email *</label>
+                <input type="email" id="regEmail" placeholder="email@example.com">
+            </div>
+            
+            <div class="form-group">
+                <label>Telefoon (optioneel)</label>
+                <input type="tel" id="regTelefoon" placeholder="+31 6 12345678">
+            </div>
+            
+            <div class="form-group">
+                <label>DID Type *</label>
+                <select id="regDidType">
+                    <option value="farmer">Farmer (Boer)</option>
+                    <option value="transporter">Transporter</option>
+                    <option value="certifier">Certifier (Certificeerder)</option>
+                    <option value="factory">Factory (Fabriek)</option>
+                </select>
+            </div>
+            
+            <button class="button" onclick="registerNewDID()">📝 Request Verification Code</button>
+        </div>
+
+        <!-- Verify Code -->
+        <div class="card" id="verifySection" style="display: none;">
+            <h2>✅ Verify Registration</h2>
+            <div id="verifyResult"></div>
+            
+            <div class="form-group">
+                <label>Verification Code (check console/email) *</label>
+                <input type="text" id="verifyCode" placeholder="123456">
+            </div>
+            
+            <button class="button button-success" onclick="verifyDID()">✅ Verify & Create DID</button>
+        </div>
+
+        <!-- View All DIDs -->
+        <div class="card">
+            <h2>👥 Registered DIDs</h2>
+            <button class="button" onclick="loadAllDIDs()">🔄 Refresh DID List</button>
+            <div id="didList" class="did-list"></div>
+        </div>
+
+        <!-- Resolve DID -->
+        <div class="card">
+            <h2>🔍 Resolve DID</h2>
+            <div id="resolveResult"></div>
+            
+            <div class="form-group">
+                <label>DID to Resolve</label>
+                <input type="text" id="resolveDid" placeholder="did:ethr:0x...">
+            </div>
+            
+            <button class="button" onclick="resolveDID()">🔍 Resolve</button>
+        </div>
+    </div>
+
+    <script src="did-management-app.js"></script>
+</body>
+</html>

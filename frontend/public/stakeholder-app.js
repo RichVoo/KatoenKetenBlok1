@@ -58,18 +58,84 @@ async function init() {
     }
 }
 
+// Import custom wallet from DID service
+async function importCustomWallet() {
+    const result = document.getElementById('importResult');
+    try {
+        const privateKey = document.getElementById('customPrivateKey').value.trim();
+        
+        if (!privateKey) {
+            throw new Error("Private key is required!");
+        }
+        
+        if (!privateKey.startsWith('0x')) {
+            throw new Error("Private key must start with 0x");
+        }
+        
+        // Create wallet from private key
+        const wallet = new ethers.Wallet(privateKey, provider);
+        const address = wallet.address;
+        
+        // Check if this wallet has a DID
+        const tempDpp = new ethers.Contract(CONTRACTS.IntegratedCottonDPP, DPP_ABI, wallet);
+        const hasDID = await tempDpp.hasDID(address);
+        
+        if (!hasDID) {
+            result.innerHTML = '<div class="alert alert-error">⚠️ Deze wallet heeft nog geen DID geregistreerd. Registreer eerst een DID.</div>';
+            return;
+        }
+        
+        // Get DID info
+        const didInfo = await tempDpp.dids(address);
+        
+        // Add to TEST_ACCOUNTS array
+        TEST_ACCOUNTS.push({
+            address: address,
+            key: privateKey,
+            role: `Custom (${didInfo.didType})`,
+            type: "custom"
+        });
+        
+        result.innerHTML = `<div class="alert alert-success">✅ Wallet geïmporteerd!<br>Address: ${address}<br>Type: ${didInfo.didType}<br><br>Klik nu op "Custom DID" kaart om te gebruiken.</div>`;
+        
+        // Clear input
+        document.getElementById('customPrivateKey').value = '';
+        
+        console.log("✅ Custom wallet imported:", address);
+        
+    } catch (error) {
+        console.error("❌ Import error:", error);
+        result.innerHTML = `<div class="alert alert-error">❌ Error: ${error.message}</div>`;
+    }
+}
+
 function selectRole(roleType, accountIndex) {
     // Hide all dashboards
     document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('active'));
     document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
     
-    // Show selected dashboard
-    document.getElementById(`dashboard-${roleType}`).classList.add('active');
+    // For custom wallet, use the last imported one
+    let account;
+    if (roleType === 'custom') {
+        const customAccounts = TEST_ACCOUNTS.filter(a => a.type === 'custom');
+        if (customAccounts.length === 0) {
+            alert('⚠️ Geen custom wallet geïmporteerd! Import eerst een wallet met je private key.');
+            return;
+        }
+        account = customAccounts[customAccounts.length - 1]; // Use last imported
+        
+        // Show farmer dashboard for custom wallets (they need to create batches)
+        document.getElementById('dashboard-farmer').classList.add('active');
+    } else {
+        account = TEST_ACCOUNTS[accountIndex];
+        // Show selected dashboard
+        document.getElementById(`dashboard-${roleType}`).classList.add('active');
+    }
+    
     event.currentTarget.classList.add('active');
     
     // Set account
     currentRole = roleType;
-    const account = TEST_ACCOUNTS[accountIndex];
     signer = new ethers.Wallet(account.key, provider);
     currentAccount = account.address;
     
