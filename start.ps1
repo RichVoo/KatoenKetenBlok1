@@ -32,20 +32,24 @@ Start-Sleep -Seconds 5
 Write-Host "2. Deploying smart contracts..." -ForegroundColor Cyan
 Set-Location contracts
 npx hardhat run scripts/deploy.js --network localhost
+
+# Setup roles and initial data
+Write-Host "3. Setting up roles and initial data..." -ForegroundColor Cyan
+npx hardhat run scripts/setup.js --network localhost
 Set-Location ..
 
-# Wait a bit for deployment
+# Wait for setup
 Start-Sleep -Seconds 3
 
 # Start backend
-Write-Host "3. Starting backend server..." -ForegroundColor Cyan
+Write-Host "4. Starting backend server..." -ForegroundColor Cyan
 Start-InNewWindow -Title "Backend Server" -Command "npm start" -WorkingDirectory "$rootDir\backend"
 
 # Wait for backend to start
 Start-Sleep -Seconds 5
 
 # Start frontend (Simple HTTP Server)
-Write-Host "4. Starting frontend..." -ForegroundColor Cyan
+Write-Host "5. Starting frontend..." -ForegroundColor Cyan
 Start-InNewWindow -Title "Frontend" -Command "cd public; python -m http.server 8000" -WorkingDirectory "$rootDir\frontend"
 
 Write-Host ""

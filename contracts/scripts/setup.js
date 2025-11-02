@@ -1,45 +1,98 @@
 const hre = require("hardhat");
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  console.log("🔧 Setting up IntegratedCottonDPP with roles...\n");
+
+  // Get signers (Hardhat test accounts)
+  const [admin, boer, transporteur, certificeerder, fabriek] = await hre.ethers.getSigners();
   
-  console.log("🔧 Setting up contracts with initial data...\n");
-  console.log("Using account:", deployer.address);
+  console.log("� Accounts:");
+  console.log("Admin:         ", admin.address);
+  console.log("Boer:          ", boer.address);
+  console.log("Transporteur:  ", transporteur.address);
+  console.log("Certificeerder:", certificeerder.address);
+  console.log("Fabriek:       ", fabriek.address);
 
   // Load deployed addresses
   const addresses = require('../deployed-addresses.json');
 
   // Get contract instances
-  const stableCoin = await hre.ethers.getContractAt("StableCoin", addresses.StableCoin);
-  const cottonDPP = await hre.ethers.getContractAt("CottonDPP", addresses.CottonDPP);
-  const didRegistry = await hre.ethers.getContractAt("DIDRegistry", addresses.DIDRegistry);
-  const vcIssuer = await hre.ethers.getContractAt("VCIssuer", addresses.VCIssuer);
+  const usdt = await hre.ethers.getContractAt("USDTMock", addresses.USDT);
+  const dpp = await hre.ethers.getContractAt("IntegratedCottonDPP", addresses.IntegratedCottonDPP);
 
-  console.log("\n📝 Creating test DIDs...");
+  console.log("\n🔐 Granting roles...");
   
-  // Create DID for deployer (admin/certifier)
-  const tx1 = await didRegistry.createDID(deployer.address, "publicKey123", "certifier");
-  await tx1.wait();
-  console.log("✅ DID created for certifier:", deployer.address);
+  // Grant FARMER_ROLE to boer
+  const FARMER_ROLE = await dpp.FARMER_ROLE();
+  let tx = await dpp.grantRole(FARMER_ROLE, boer.address);
+  await tx.wait();
+  console.log("✅ FARMER_ROLE granted to:", boer.address);
 
-  // Create test batch
-  console.log("\n🌾 Creating test cotton batch...");
-  const tx2 = await cottonDPP.createBatch(
-    deployer.address,
-    1000, // 1000 kg
-    85, // quality 85%
-    "Farm De Polder, Netherlands"
-  );
-  await tx2.wait();
-  console.log("✅ Test batch created");
+  // Grant TRANSPORTER_ROLE to transporteur
+  const TRANSPORTER_ROLE = await dpp.TRANSPORTER_ROLE();
+  tx = await dpp.grantRole(TRANSPORTER_ROLE, transporteur.address);
+  await tx.wait();
+  console.log("✅ TRANSPORTER_ROLE granted to:", transporteur.address);
 
-  console.log("\n💰 Minting test tokens...");
-  const mintAmount = hre.ethers.parseUnits("10000", 2); // 10000 tokens
-  const tx3 = await stableCoin.mint(deployer.address, mintAmount);
-  await tx3.wait();
-  console.log("✅ Minted 10000 CSC tokens");
+  // Grant CERTIFIER_ROLE to certificeerder
+  const CERTIFIER_ROLE = await dpp.CERTIFIER_ROLE();
+  tx = await dpp.grantRole(CERTIFIER_ROLE, certificeerder.address);
+  await tx.wait();
+  console.log("✅ CERTIFIER_ROLE granted to:", certificeerder.address);
+
+  // Grant FACTORY_ROLE to fabriek
+  const FACTORY_ROLE = await dpp.FACTORY_ROLE();
+  tx = await dpp.grantRole(FACTORY_ROLE, fabriek.address);
+  await tx.wait();
+  console.log("✅ FACTORY_ROLE granted to:", fabriek.address);
+
+  console.log("\n💰 Minting USDT to all stakeholders...");
+  const mintAmount = hre.ethers.parseUnits("100000", 6); // 100,000 USDT (6 decimals)
+  
+  tx = await usdt.mint(admin.address, mintAmount);
+  await tx.wait();
+  console.log("✅ Minted 100,000 USDT to Admin");
+  
+  tx = await usdt.mint(boer.address, mintAmount);
+  await tx.wait();
+  console.log("✅ Minted 100,000 USDT to Boer");
+  
+  tx = await usdt.mint(transporteur.address, mintAmount);
+  await tx.wait();
+  console.log("✅ Minted 100,000 USDT to Transporteur");
+  
+  tx = await usdt.mint(certificeerder.address, mintAmount);
+  await tx.wait();
+  console.log("✅ Minted 100,000 USDT to Certificeerder");
+  
+  tx = await usdt.mint(fabriek.address, mintAmount);
+  await tx.wait();
+  console.log("✅ Minted 100,000 USDT to Fabriek");
+
+  console.log("\n� Registering DIDs for all stakeholders...");
+  
+  tx = await dpp.connect(admin).registerDID(boer.address, "boer-public-key", "farmer");
+  await tx.wait();
+  console.log("✅ DID registered for Boer");
+  
+  tx = await dpp.connect(admin).registerDID(transporteur.address, "transporteur-public-key", "transporter");
+  await tx.wait();
+  console.log("✅ DID registered for Transporteur");
+  
+  tx = await dpp.connect(admin).registerDID(certificeerder.address, "certificeerder-public-key", "certifier");
+  await tx.wait();
+  console.log("✅ DID registered for Certificeerder");
+  
+  tx = await dpp.connect(admin).registerDID(fabriek.address, "fabriek-public-key", "factory");
+  await tx.wait();
+  console.log("✅ DID registered for Fabriek");
 
   console.log("\n✅ Setup complete!");
+  console.log("\n📋 Summary:");
+  console.log("- All roles granted");
+  console.log("- All stakeholders have 100,000 USDT");
+  console.log("- All DIDs registered");
+  console.log("\n🚀 Ready to use the DApp!");
 }
 
 main()

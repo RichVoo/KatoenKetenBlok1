@@ -223,14 +223,25 @@ contract IntegratedCottonDPP is AccessControl {
 
     /**
      * @dev Update batch status
+     * Anyone with a valid role can update status based on their role permissions
      */
     function updateBatchStatus(uint256 batchId, BatchStatus newStatus) external {
         require(batches[batchId].exists, "Batch does not exist");
-        require(
-            hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
-            batches[batchId].currentOwner == msg.sender,
-            "Not authorized"
-        );
+        
+        // Check role-based permissions for status transitions
+        if (newStatus == BatchStatus.Verified) {
+            require(hasRole(CERTIFIER_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only certifier can verify");
+        } else if (newStatus == BatchStatus.InTransit) {
+            require(hasRole(TRANSPORTER_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only transporter can set in transit");
+        } else if (newStatus == BatchStatus.QualityChecked || newStatus == BatchStatus.Delivered || newStatus == BatchStatus.Completed) {
+            require(hasRole(FACTORY_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only factory can update to this status");
+        } else {
+            require(
+                hasRole(DEFAULT_ADMIN_ROLE, msg.sender) ||
+                batches[batchId].currentOwner == msg.sender,
+                "Not authorized"
+            );
+        }
         
         batches[batchId].status = newStatus;
         
