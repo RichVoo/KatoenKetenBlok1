@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katoen Supply Chain - Stakeholder Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 { text-align: center; color: white; margin-bottom: 30px; font-size: 2.5em; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        
+        /* Role Selection */
+        .role-selector { background: white; border-radius: 12px; padding: 30px; margin-bottom: 30px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); }
+        .role-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
+        .role-card { background: linear-gradient(135deg, #f8f9fa, #e9ecef); border: 3px solid #e0e0e0; border-radius: 12px; padding: 30px; text-align: center; cursor: pointer; transition: all 0.3s; }
+        .role-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(102,126,234,0.3); border-color: #667eea; }
+        .role-card.active { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-color: #667eea; }
+        .role-icon { font-size: 4em; margin-bottom: 15px; }
+        .role-name { font-size: 1.3em; font-weight: 600; margin-bottom: 5px; }
+        .role-desc { font-size: 0.9em; opacity: 0.8; }
+        
+        /* Dashboard Content */
+        .dashboard { display: none; }
+        .dashboard.active { display: block; }
+        
+        .card { background: white; border-radius: 12px; padding: 30px; margin-bottom: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.15); }
+        h2 { color: #333; margin-bottom: 20px; font-size: 24px; border-left: 4px solid #667eea; padding-left: 15px; }
+        h3 { color: #555; margin: 20px 0 10px; font-size: 18px; }
+        
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1rem 0; }
+        .info-item { padding: 1rem; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea; }
+        .info-item strong { display: block; margin-bottom: 0.5rem; color: #2c3e50; font-size: 0.9rem; }
+        .info-item span { color: #555; font-size: 1rem; word-break: break-all; }
+        
+        .form-group { margin-bottom: 20px; }
+        label { display: block; color: #555; font-weight: 500; margin-bottom: 8px; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 15px; transition: border-color 0.3s ease; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #667eea; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        
+        .button { width: 100%; padding: 15px; background: #667eea; color: white; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; margin: 5px 0; }
+        .button:hover { background: #5568d3; transform: translateY(-2px); }
+        .button-success { background: #10b981; }
+        .button-success:hover { background: #059669; }
+        .button-warning { background: #f59e0b; }
+        .button-warning:hover { background: #d97706; }
+        .button-danger { background: #ef4444; }
+        .button-danger:hover { background: #dc2626; }
+        .button-small { padding: 10px 20px; font-size: 14px; width: auto; display: inline-block; }
+        
+        .alert { padding: 15px; border-radius: 8px; margin: 15px 0; }
+        .alert-success { background: #d1fae5; border: 2px solid #10b981; color: #065f46; }
+        .alert-error { background: #fee2e2; border: 2px solid #ef4444; color: #991b1b; }
+        .alert-info { background: #dbeafe; border: 2px solid #3b82f6; color: #1e40af; }
+        .alert-warning { background: #fef3c7; border: 2px solid #f59e0b; color: #92400e; }
+        
+        .batch-list { margin-top: 1rem; }
+        .batch-item { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin-bottom: 0.5rem; border-left: 4px solid #10b981; cursor: pointer; transition: all 0.3s; }
+        .batch-item:hover { background: #e9ecef; transform: translateX(5px); }
+        
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 10px; }
+        .status-created { background: #dbeafe; color: #1e40af; }
+        .status-verified { background: #d1fae5; color: #065f46; }
+        .status-transit { background: #fef3c7; color: #92400e; }
+        .status-checked { background: #ede9fe; color: #5b21b6; }
+        .status-delivered { background: #d1fae5; color: #065f46; }
+        .status-completed { background: #10b981; color: white; }
+        
+        .loading { text-align: center; padding: 40px; }
+        .spinner { width: 60px; height: 60px; border: 4px solid #f3f3f3; border-top: 4px solid #667eea; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .task-list { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 15px 0; }
+        .task-item { padding: 10px; margin: 10px 0; background: white; border-radius: 6px; border-left: 4px solid #667eea; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h1 style="margin: 0;">🌾 Katoen Supply Chain Dashboard</h1>
+            <a href="dpp-viewer.html" target="_blank" class="button button-success" style="text-decoration: none; width: auto; padding: 12px 24px; font-size: 15px;">📱 DPP Viewer</a>
+        </div>
+        
+        <!-- Role Selection -->
+        <div class="role-selector">
+            <h2 style="border: none; padding: 0; margin-bottom: 20px;">Selecteer uw rol:</h2>
+            <div class="role-grid">
+                <div class="role-card" onclick="selectRole('admin', 0)">
+                    <div class="role-icon">⚙️</div>
+                    <div class="role-name">Admin</div>
+                    <div class="role-desc">Systeem Beheer</div>
+                </div>
+                <div class="role-card" onclick="selectRole('farmer', 1)">
+                    <div class="role-icon">👨‍🌾</div>
+                    <div class="role-name">Boer</div>
+                    <div class="role-desc">Katoen Producent</div>
+                </div>
+                <div class="role-card" onclick="selectRole('transporter', 2)">
+                    <div class="role-icon">🚛</div>
+                    <div class="role-name">Transporteur</div>
+                    <div class="role-desc">Logistiek & Transport</div>
+                </div>
+                <div class="role-card" onclick="selectRole('certifier', 3)">
+                    <div class="role-icon">📜</div>
+                    <div class="role-name">Certificeerder</div>
+                    <div class="role-desc">Kwaliteit Certificatie</div>
+                </div>
+                <div class="role-card" onclick="selectRole('factory', 4)">
+                    <div class="role-icon">🏭</div>
+                    <div class="role-name">Fabriek</div>
+                    <div class="role-desc">Verwerking & Productie</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Account Info -->
+        <div class="card">
+            <div class="info-grid">
+                <div class="info-item">
+                    <strong>👤 Huidige Account</strong>
+                    <span id="currentAccount">Selecteer een rol</span>
+                </div>
+                <div class="info-item">
+                    <strong>💰 ETH Balance</strong>
+                    <span id="ethBalance">0 ETH</span>
+                </div>
+                <div class="info-item">
+                    <strong>💵 USDT Balance</strong>
+                    <span id="usdtBalance">0 USDT</span>
+                </div>
+                <div class="info-item">
+                    <strong>✅ DID Status</strong>
+                    <span id="didStatus">Geen DID</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ADMIN DASHBOARD -->
+        <div id="dashboard-admin" class="dashboard">
+            <div class="card">
+                <h2>⚙️ Admin Dashboard</h2>
+                <div class="task-list">
+                    <h3>📋 Uw Taken:</h3>
+                    <div class="task-item">✅ DID registreren voor alle stakeholders</div>
+                    <div class="task-item">✅ USDT tokens minten indien nodig</div>
+                    <div class="task-item">✅ Systeem status monitoren</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>1. DID Registratie voor Stakeholders</h2>
+                <div class="form-group">
+                    <label>Selecteer Stakeholder</label>
+                    <select id="admin-stakeholder" onchange="adminFillAddress()">
+                        <option value="">-- Selecteer --</option>
+                        <option value="1">Account #1 - Boer</option>
+                        <option value="2">Account #2 - Transporteur</option>
+                        <option value="3">Account #3 - Certificeerder</option>
+                        <option value="4">Account #4 - Fabriek</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" id="admin-address" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <input type="text" id="admin-type" readonly>
+                </div>
+                <button class="button button-success" onclick="adminRegisterDID()">Registreer DID</button>
+                <div id="admin-did-result"></div>
+            </div>
+
+            <div class="card">
+                <h2>2. DID Status Overzicht</h2>
+                <button class="button" onclick="adminCheckAllDIDs()">Check Alle DIDs</button>
+                <div id="admin-did-overview"></div>
+            </div>
+
+            <div class="card">
+                <h2>3. USDT Tokens Minten</h2>
+                <div class="form-group">
+                    <label>Ontvanger Address</label>
+                    <input type="text" id="admin-mint-to" placeholder="0x...">
+                </div>
+                <div class="form-group">
+                    <label>Bedrag (USDT)</label>
+                    <input type="number" id="admin-mint-amount" value="10000">
+                </div>
+                <button class="button button-warning" onclick="adminMintUSDT()">Mint USDT</button>
+                <div id="admin-mint-result"></div>
+            </div>
+        </div>
+
+        <!-- FARMER DASHBOARD -->
+        <div id="dashboard-farmer" class="dashboard">
+            <div class="card">
+                <h2>👨‍🌾 Boer Dashboard</h2>
+                <div class="task-list">
+                    <h3>📋 Uw Taken:</h3>
+                    <div class="task-item">🌾 Katoen oogsten en batch aanmaken</div>
+                    <div class="task-item">📊 Kwaliteit en hoeveelheid registreren</div>
+                    <div class="task-item">💰 Betalingen ontvangen na levering</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>1. Nieuwe Katoen Batch Aanmaken</h2>
+                <div class="alert alert-info">
+                    <strong>ℹ️ Info:</strong> Registreer uw geoogste katoen met gewicht en herkomst. Kwaliteit wordt automatisch random gegenereerd (60-100).
+                </div>
+                <div class="form-group">
+                    <label>Gewicht (kg)</label>
+                    <input type="number" id="farmer-weight" value="500">
+                </div>
+                <div class="form-group">
+                    <label>Herkomst Locatie</label>
+                    <input type="text" id="farmer-origin" value="Gujarat, India">
+                </div>
+                <button class="button button-success" onclick="farmerCreateBatch()">🌾 Maak Batch Aan (Random Kwaliteit)</button>
+                <div id="farmer-create-result"></div>
+            </div>
+
+            <div class="card">
+                <h2>2. Mijn Batches</h2>
+                <button class="button" onclick="farmerLoadBatches()">Ververs Batches</button>
+                <div id="farmer-batches"></div>
+            </div>
+
+            <div class="card">
+                <h2>3. USDT Faucet</h2>
+                <div class="alert alert-warning">
+                    <strong>💡 Tip:</strong> Krijg gratis 1000 USDT voor testing
+                </div>
+                <button class="button button-warning" onclick="getFaucet()">🚰 Krijg 1000 USDT</button>
+                <div id="farmer-faucet-result"></div>
+            </div>
+        </div>
+
+        <!-- TRANSPORTER DASHBOARD -->
+        <div id="dashboard-transporter" class="dashboard">
+            <div class="card">
+                <h2>🚛 Transporteur Dashboard</h2>
+                <div class="task-list">
+                    <h3>📋 Uw Taken:</h3>
+                    <div class="task-item">📡 IoT sensor data registreren tijdens transport</div>
+                    <div class="task-item">🌡️ Temperatuur en luchtvochtigheid monitoren</div>
+                    <div class="task-item">📍 GPS locatie bijhouden</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>1. Batch Tracking & IoT Data</h2>
+                <div class="alert alert-info">
+                    <strong>ℹ️ Info:</strong> Track de batch en bekijk alle IoT sensor data. Als er nog geen IoT data is, wordt deze automatisch gegenereerd (10-15 records).
+                </div>
+                <div class="form-group">
+                    <label>Batch ID</label>
+                    <input type="number" id="trans-track" placeholder="1">
+                </div>
+                <div class="alert alert-warning">
+                    <strong>📡 Automatische IoT Generatie:</strong><br>
+                    • 10-15 random sensor readings<br>
+                    • Temperatuur: 15-35°C<br>
+                    • Luchtvochtigheid: 40-80%<br>
+                    • Transport route: India → Rotterdam
+                </div>
+                <button class="button button-success" onclick="transporterTrack()">� Track Batch (Auto-genereer IoT als nodig)</button>
+                <div id="trans-track-result"></div>
+            </div>
+        </div>
+
+        <!-- CERTIFIER DASHBOARD -->
+        <div id="dashboard-certifier" class="dashboard">
+            <div class="card">
+                <h2>📜 Certificeerder Dashboard</h2>
+                <div class="task-list">
+                    <h3>📋 Uw Taken:</h3>
+                    <div class="task-item">✅ Verifiable Credentials uitgeven aan boeren</div>
+                    <div class="task-item">🌱 Bio, Fairtrade en Kwaliteit certificaten beheren</div>
+                    <div class="task-item">📋 Credentials koppelen aan batches</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>1. Verifiable Credential Uitgeven</h2>
+                <div class="alert alert-info">
+                    <strong>ℹ️ Info:</strong> Geef een credential uit aan een boer voor bio certificatie, kwaliteit of fairtrade.
+                </div>
+                <div class="form-group">
+                    <label>Boer Address</label>
+                    <input type="text" id="cert-subject" placeholder="0x70997970C51812dc3A010C7d01b50e0d17dc79C8">
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Type Certificaat</label>
+                        <select id="cert-type">
+                            <option value="OrganicCertificate">Bio Certificaat</option>
+                            <option value="QualityCertificate">Kwaliteit Certificaat</option>
+                            <option value="FairTradeCertificate">Fairtrade Certificaat</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Geldigheid (dagen)</label>
+                        <input type="number" id="cert-validity" value="365">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Data (JSON)</label>
+                    <textarea id="cert-data">{"issuer":"Bio Certificaat NL","score":95,"details":"Voldoet aan EU Bio normen"}</textarea>
+                </div>
+                <button class="button button-success" onclick="certifierIssueVC()">📜 Geef Credential Uit</button>
+                <div id="cert-vc-result"></div>
+            </div>
+        </div>
+
+        <!-- FACTORY DASHBOARD -->
+        <div id="dashboard-factory" class="dashboard">
+            <div class="card">
+                <h2>🏭 Fabriek Dashboard</h2>
+                <div class="task-list">
+                    <h3>📋 Uw Taken:</h3>
+                    <div class="task-item">🔬 Kwaliteitscontrole uitvoeren bij ontvangst</div>
+                    <div class="task-item">✅ Batch status updaten</div>
+                    <div class="task-item">💰 Betalingen uitvoeren aan boeren met kwaliteitsbonus</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>1. Batch Status Updaten</h2>
+                <div class="alert alert-info">
+                    <strong>ℹ️ Info:</strong> Update de status van een batch na kwaliteitscontrole of verwerking.
+                </div>
+                <div class="form-group">
+                    <label>Batch ID</label>
+                    <input type="number" id="fact-batch" placeholder="1">
+                </div>
+                <div class="form-group">
+                    <label>Nieuwe Status</label>
+                    <select id="fact-status">
+                        <option value="1">Verified (Geverifieerd)</option>
+                        <option value="2">In Transit (In Transport)</option>
+                        <option value="3">Quality Checked (Kwaliteit Gecontroleerd)</option>
+                        <option value="4">Delivered (Afgeleverd)</option>
+                        <option value="5">Completed (Compleet)</option>
+                    </select>
+                </div>
+                <button class="button button-success" onclick="factoryUpdateStatus()">✅ Update Status</button>
+                <div id="fact-status-result"></div>
+            </div>
+
+            <div class="card">
+                <h2>2. Betaling aan Boer met Kwaliteitsbonus</h2>
+                <div class="alert alert-warning">
+                    <strong>💰 Bonus Structuur:</strong><br>
+                    Kwaliteit 90-100: +30% bonus<br>
+                    Kwaliteit 70-89: +15% bonus<br>
+                    Basis: 10 USDT per kg
+                </div>
+                <div class="form-group">
+                    <label>Batch ID</label>
+                    <input type="number" id="fact-pay-batch" placeholder="1">
+                </div>
+                <button class="button button-success" onclick="factoryPayBonus()">💰 Betaal Kwaliteitsbonus</button>
+                <div id="fact-pay-result"></div>
+            </div>
+
+            <div class="card">
+                <h2>3. USDT Faucet</h2>
+                <button class="button button-warning" onclick="getFaucet()">🚰 Krijg 1000 USDT</button>
+                <div id="fact-faucet-result"></div>
+            </div>
+
+            <div class="card">
+                <h2>4. Batch Details Bekijken</h2>
+                <div class="form-group">
+                    <label>Batch ID</label>
+                    <input type="number" id="fact-view-batch" placeholder="1">
+                </div>
+                <button class="button" onclick="factoryViewBatch()">🔍 Bekijk Details</button>
+                <div id="fact-view-result"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="stakeholder-app.js"></script>
+</body>
+</html>

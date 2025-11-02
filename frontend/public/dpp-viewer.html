@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Product Passport Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            text-align: center;
+        }
+
+        .search-box h2 {
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            max-width: 400px;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            margin-right: 10px;
+        }
+
+        .button {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+        }
+
+        .spinner {
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #3b82f6;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .dpp-viewer {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            display: none;
+        }
+
+        .dpp-viewer.active {
+            display: block;
+        }
+
+        .dpp-header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .dpp-header h2 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .dpp-product-info {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 15px;
+        }
+
+        .product-image {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #e0e7ff, #dbeafe);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            border: 3px solid #3b82f6;
+        }
+
+        .product-details {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .product-details h3 {
+            color: #1e293b;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            gap: 10px;
+            font-size: 15px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #475569;
+            min-width: 150px;
+        }
+
+        .detail-value {
+            color: #1e293b;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+            margin-top: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #3b82f6, #06b6d4);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -44px;
+            top: 20px;
+            width: 20px;
+            height: 20px;
+            background: #10b981;
+            border: 4px solid #10b981;
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px white;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .timeline-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .timeline-actor {
+            color: #64748b;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+
+        .timeline-date {
+            font-size: 13px;
+            color: #64748b;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+        }
+
+        .timeline-content {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .timeline-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .data-badge {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            font-size: 13px;
+        }
+
+        .data-badge strong {
+            color: #1e293b;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .data-badge span {
+            color: #64748b;
+        }
+
+        .verification-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            border-radius: 15px;
+            border: 2px solid #10b981;
+        }
+
+        .verification-section h3 {
+            color: #065f46;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .blockchain-info {
+            text-align: center;
+            margin-top: 40px;
+            padding: 25px;
+            background: #f8fafc;
+            border-radius: 15px;
+        }
+
+        .blockchain-info p {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .blockchain-info strong {
+            color: #1e293b;
+            display: block;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            color: #991b1b;
+        }
+
+        .alert-info {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+            color: #1e3a8a;
+        }
+
+        @media (max-width: 768px) {
+            .dpp-product-info {
+                grid-template-columns: 1fr;
+            }
+
+            .timeline-data {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📱 Digital Product Passport Viewer</h1>
+        <p class="subtitle">Bekijk de complete supply chain geschiedenis van een katoen batch</p>
+
+        <div class="search-box">
+            <h2>🔍 Zoek Batch</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">Voer een Batch ID in om het volledige Digital Product Passport te bekijken</p>
+            <div id="connectionStatus" style="margin-bottom: 15px; padding: 10px; border-radius: 8px; display: none;"></div>
+            <div>
+                <input type="number" id="batchIdInput" class="search-input" placeholder="Bijvoorbeeld: 1" min="0">
+                <button class="button" onclick="loadDPP()">📱 Bekijk DPP</button>
+            </div>
+        </div>
+
+        <div id="loadingDiv" class="dpp-viewer">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>DPP laden...</p>
+            </div>
+        </div>
+
+        <div id="errorDiv" class="dpp-viewer">
+            <div class="alert alert-error" id="errorMessage"></div>
+        </div>
+
+        <div id="dppContent" class="dpp-viewer">
+            <!-- DPP content will be loaded here -->
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.umd.min.js"></script>
+    <script src="dpp-viewer-app.js"></script>
+</body>
+</html>
