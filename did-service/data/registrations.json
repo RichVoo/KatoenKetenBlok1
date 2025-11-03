@@ -202,5 +202,281 @@
       "to": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
     },
     "onChain": true
+  },
+  {
+    "did": "did:ethr:0xFe7CA6b1831116A1eEA0C9FE6bB5C64ef35aB693",
+    "walletAddress": "0xFe7CA6b1831116A1eEA0C9FE6bB5C64ef35aB693",
+    "privateKey": "0x85539ff798a1dd54185d23dc27d8f99daf9197e59d32e267f33263598c8e5168",
+    "urn": "1234567",
+    "naam": "jan",
+    "bedrijfsnaam": "boer",
+    "email": "jan@boer.nl",
+    "telefoon": "jan@boer.nl",
+    "role": "farmer",
+    "didDocument": {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": "did:ethr:0xFe7CA6b1831116A1eEA0C9FE6bB5C64ef35aB693",
+      "verificationMethod": [
+        {
+          "id": "did:ethr:0xFe7CA6b1831116A1eEA0C9FE6bB5C64ef35aB693#key-1",
+          "type": "EcdsaSecp256k1VerificationKey2019",
+          "controller": "did:ethr:0xFe7CA6b1831116A1eEA0C9FE6bB5C64ef35aB693",
+          "blockchainAccountId": "eip155:1337:0xFe7CA6b1831116A1eEA0C9FE6bB5C64ef35aB693"
+        }
+      ],
+      "authentication": [
+        "did:ethr:0xFe7CA6b1831116A1eEA0C9FE6bB5C64ef35aB693#key-1"
+      ],
+      "created": "2025-11-03T08:04:11.932Z"
+    },
+    "timestamp": "2025-11-03T08:04:11.932Z",
+    "verified": true,
+    "txHash": "0x15b26305db35e40b2963b7cd13671de45312bb56ba39fcfa12ae9880ed2b41bf",
+    "txReceipt": {
+      "_type": "TransactionReceipt",
+      "blockHash": "0x3500c4643fc348ffef683ef1f764c7b0cce16d4f7191b16d5c1661ed921625f0",
+      "blockNumber": 17,
+      "contractAddress": null,
+      "cumulativeGasUsed": "291312",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "gasPrice": "1109231109",
+      "blobGasUsed": null,
+      "blobGasPrice": null,
+      "gasUsed": "291312",
+      "hash": "0x15b26305db35e40b2963b7cd13671de45312bb56ba39fcfa12ae9880ed2b41bf",
+      "index": 0,
+      "logs": [
+        {
+          "_type": "log",
+          "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+          "blockHash": "0x3500c4643fc348ffef683ef1f764c7b0cce16d4f7191b16d5c1661ed921625f0",
+          "blockNumber": 17,
+          "data": "0x",
+          "index": 0,
+          "topics": [
+            "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d",
+            "0x7c6181838a71a779e445600d4c6ecbe16bacf2b3c5bda69c29fada66d1b645d1",
+            "0x000000000000000000000000fe7ca6b1831116a1eea0c9fe6bb5c64ef35ab693",
+            "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+          ],
+          "transactionHash": "0x15b26305db35e40b2963b7cd13671de45312bb56ba39fcfa12ae9880ed2b41bf",
+          "transactionIndex": 0
+        },
+        {
+          "_type": "log",
+          "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+          "blockHash": "0x3500c4643fc348ffef683ef1f764c7b0cce16d4f7191b16d5c1661ed921625f0",
+          "blockNumber": 17,
+          "data": "0x000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000356469643a636f74746f6e3a307866653763613662313833313131366131656561306339666536626235633634656633356162363933000000000000000000000000000000000000000000000000000000000000000000000000000000000000066661726d65720000000000000000000000000000000000000000000000000000",
+          "index": 1,
+          "topics": [
+            "0x9f9e551d0f9d37cbfd9f18d5bffe17f0ab26bf932ac76ad9c6b2f573cae3dff2",
+            "0x000000000000000000000000fe7ca6b1831116a1eea0c9fe6bb5c64ef35ab693"
+          ],
+          "transactionHash": "0x15b26305db35e40b2963b7cd13671de45312bb56ba39fcfa12ae9880ed2b41bf",
+          "transactionIndex": 0
+        }
+      ],
+      "logsBloom": "0x00000004000000000000400000000000000000000000000000000400000000000000000010000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000100000000000000020000000000000000000100000000000000040000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000001000000000000000000000000000200000000000001400000000002000000100000000000000000000000000000000000000000000000000000000000000800000000000000000",
+      "status": 1,
+      "to": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    },
+    "onChain": true
+  },
+  {
+    "did": "did:ethr:0x36Ee95C5c6D6b9F6Bc6aA26f5A2e6160A405F93b",
+    "walletAddress": "0x36Ee95C5c6D6b9F6Bc6aA26f5A2e6160A405F93b",
+    "privateKey": "0x9f36e3a501fe613525941a82c376f90e0d78fb4187f0158367259a86656abc27",
+    "urn": "12354556547657",
+    "naam": "jan",
+    "bedrijfsnaam": "boertje",
+    "email": "jan@boertje.nl",
+    "telefoon": "jan@boertje.nl",
+    "didType": "farmer",
+    "didDocument": {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": "did:ethr:0x36Ee95C5c6D6b9F6Bc6aA26f5A2e6160A405F93b",
+      "verificationMethod": [
+        {
+          "id": "did:ethr:0x36Ee95C5c6D6b9F6Bc6aA26f5A2e6160A405F93b#key-1",
+          "type": "EcdsaSecp256k1VerificationKey2019",
+          "controller": "did:ethr:0x36Ee95C5c6D6b9F6Bc6aA26f5A2e6160A405F93b",
+          "blockchainAccountId": "eip155:1337:0x36Ee95C5c6D6b9F6Bc6aA26f5A2e6160A405F93b"
+        }
+      ],
+      "authentication": [
+        "did:ethr:0x36Ee95C5c6D6b9F6Bc6aA26f5A2e6160A405F93b#key-1"
+      ],
+      "created": "2025-11-03T13:39:12.063Z"
+    },
+    "timestamp": "2025-11-03T13:39:12.063Z",
+    "verified": true
+  },
+  {
+    "did": "did:ethr:0x239D5b083b98fb071085354546fEe1EF5123EF81",
+    "walletAddress": "0x239D5b083b98fb071085354546fEe1EF5123EF81",
+    "privateKey": "0x516560c1e8c486cb879cfadb4bd10f9cbcadbb2b371aee33d2a08517f5d75d60",
+    "urn": "12345678",
+    "naam": "jonko",
+    "bedrijfsnaam": "boertie",
+    "email": "jonko@boertie.nl",
+    "telefoon": "jonko@boertie.nl",
+    "didType": "farmer",
+    "didDocument": {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": "did:ethr:0x239D5b083b98fb071085354546fEe1EF5123EF81",
+      "verificationMethod": [
+        {
+          "id": "did:ethr:0x239D5b083b98fb071085354546fEe1EF5123EF81#key-1",
+          "type": "EcdsaSecp256k1VerificationKey2019",
+          "controller": "did:ethr:0x239D5b083b98fb071085354546fEe1EF5123EF81",
+          "blockchainAccountId": "eip155:1337:0x239D5b083b98fb071085354546fEe1EF5123EF81"
+        }
+      ],
+      "authentication": [
+        "did:ethr:0x239D5b083b98fb071085354546fEe1EF5123EF81#key-1"
+      ],
+      "created": "2025-11-03T13:51:15.133Z"
+    },
+    "timestamp": "2025-11-03T13:51:15.133Z",
+    "verified": true
+  },
+  {
+    "did": "did:ethr:0x244d0Bee8b130b728868ab0cB00ca7E530Ea11cd",
+    "walletAddress": "0x244d0Bee8b130b728868ab0cB00ca7E530Ea11cd",
+    "privateKey": "0x19247bbb8c9e0d0df5dc56e576654c97035cbf8f5f33ad00056c6cf184d93ff4",
+    "urn": "134254756",
+    "naam": "janiie",
+    "bedrijfsnaam": "boerererddenf",
+    "email": "dfsagdhghg@ggfhfg.bnl",
+    "telefoon": "dfsagdhghg@ggfhfg.bnl",
+    "didType": "farmer",
+    "didDocument": {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": "did:ethr:0x244d0Bee8b130b728868ab0cB00ca7E530Ea11cd",
+      "verificationMethod": [
+        {
+          "id": "did:ethr:0x244d0Bee8b130b728868ab0cB00ca7E530Ea11cd#key-1",
+          "type": "EcdsaSecp256k1VerificationKey2019",
+          "controller": "did:ethr:0x244d0Bee8b130b728868ab0cB00ca7E530Ea11cd",
+          "blockchainAccountId": "eip155:1337:0x244d0Bee8b130b728868ab0cB00ca7E530Ea11cd"
+        }
+      ],
+      "authentication": [
+        "did:ethr:0x244d0Bee8b130b728868ab0cB00ca7E530Ea11cd#key-1"
+      ],
+      "created": "2025-11-03T13:57:18.095Z"
+    },
+    "timestamp": "2025-11-03T13:57:18.095Z",
+    "verified": true
+  },
+  {
+    "did": "did:ethr:0x9fD8B31BcDd2Fa841938DB9B81c4EfD6C35968e9",
+    "walletAddress": "0x9fD8B31BcDd2Fa841938DB9B81c4EfD6C35968e9",
+    "privateKey": "0x35b11a6307690ea1f0e61b13109d8b5284973c23ede9d12ed71b425d781077d5",
+    "urn": "1235346456",
+    "naam": "aaaaahahhhh",
+    "bedrijfsnaam": "weide",
+    "email": "aaaaah@gmdsa.com",
+    "telefoon": "aaaaah@gmdsa.com",
+    "didType": "farmer",
+    "didDocument": {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": "did:ethr:0x9fD8B31BcDd2Fa841938DB9B81c4EfD6C35968e9",
+      "verificationMethod": [
+        {
+          "id": "did:ethr:0x9fD8B31BcDd2Fa841938DB9B81c4EfD6C35968e9#key-1",
+          "type": "EcdsaSecp256k1VerificationKey2019",
+          "controller": "did:ethr:0x9fD8B31BcDd2Fa841938DB9B81c4EfD6C35968e9",
+          "blockchainAccountId": "eip155:1337:0x9fD8B31BcDd2Fa841938DB9B81c4EfD6C35968e9"
+        }
+      ],
+      "authentication": [
+        "did:ethr:0x9fD8B31BcDd2Fa841938DB9B81c4EfD6C35968e9#key-1"
+      ],
+      "created": "2025-11-03T13:59:54.800Z"
+    },
+    "timestamp": "2025-11-03T13:59:54.801Z",
+    "verified": true
+  },
+  {
+    "did": "did:ethr:0xa7e84Fe7Ffd8ADE50228BE08c8570EA5F879f56B",
+    "walletAddress": "0xa7e84Fe7Ffd8ADE50228BE08c8570EA5F879f56B",
+    "privateKey": "0xe50b901cd68d75131324da1fe2a6654ab06c2d569496c04a818f8674a8c9f27e",
+    "urn": "4.5",
+    "naam": "claude",
+    "bedrijfsnaam": "sonnet",
+    "email": "claude@sonnet.fr",
+    "telefoon": "claude@sonnet.fr",
+    "didType": "farmer",
+    "didDocument": {
+      "@context": "https://www.w3.org/ns/did/v1",
+      "id": "did:ethr:0xa7e84Fe7Ffd8ADE50228BE08c8570EA5F879f56B",
+      "verificationMethod": [
+        {
+          "id": "did:ethr:0xa7e84Fe7Ffd8ADE50228BE08c8570EA5F879f56B#key-1",
+          "type": "EcdsaSecp256k1VerificationKey2019",
+          "controller": "did:ethr:0xa7e84Fe7Ffd8ADE50228BE08c8570EA5F879f56B",
+          "blockchainAccountId": "eip155:1337:0xa7e84Fe7Ffd8ADE50228BE08c8570EA5F879f56B"
+        }
+      ],
+      "authentication": [
+        "did:ethr:0xa7e84Fe7Ffd8ADE50228BE08c8570EA5F879f56B#key-1"
+      ],
+      "created": "2025-11-03T14:01:56.818Z"
+    },
+    "timestamp": "2025-11-03T14:01:56.818Z",
+    "verified": true,
+    "txHash": "0xe107afa2a8802a4ee39492e8a64c1833de877461aa4deab99270acb5f3229f76",
+    "txReceipt": {
+      "_type": "TransactionReceipt",
+      "blockHash": "0xb7eaf01ec1ae00061adeb61ecc200d466ea456118aa341dad03bea79c602b3f1",
+      "blockNumber": 17,
+      "contractAddress": null,
+      "cumulativeGasUsed": "291311",
+      "from": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "gasPrice": "1109231109",
+      "blobGasUsed": null,
+      "blobGasPrice": null,
+      "gasUsed": "291311",
+      "hash": "0xe107afa2a8802a4ee39492e8a64c1833de877461aa4deab99270acb5f3229f76",
+      "index": 0,
+      "logs": [
+        {
+          "_type": "log",
+          "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+          "blockHash": "0xb7eaf01ec1ae00061adeb61ecc200d466ea456118aa341dad03bea79c602b3f1",
+          "blockNumber": 17,
+          "data": "0x",
+          "index": 0,
+          "topics": [
+            "0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d",
+            "0x7c6181838a71a779e445600d4c6ecbe16bacf2b3c5bda69c29fada66d1b645d1",
+            "0x000000000000000000000000a7e84fe7ffd8ade50228be08c8570ea5f879f56b",
+            "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+          ],
+          "transactionHash": "0xe107afa2a8802a4ee39492e8a64c1833de877461aa4deab99270acb5f3229f76",
+          "transactionIndex": 0
+        },
+        {
+          "_type": "log",
+          "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+          "blockHash": "0xb7eaf01ec1ae00061adeb61ecc200d466ea456118aa341dad03bea79c602b3f1",
+          "blockNumber": 17,
+          "data": "0x000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000356469643a636f74746f6e3a307861376538346665376666643861646535303232386265303863383537306561356638373966353662000000000000000000000000000000000000000000000000000000000000000000000000000000000000066661726d65720000000000000000000000000000000000000000000000000000",
+          "index": 1,
+          "topics": [
+            "0x9f9e551d0f9d37cbfd9f18d5bffe17f0ab26bf932ac76ad9c6b2f573cae3dff2",
+            "0x000000000000000000000000a7e84fe7ffd8ade50228be08c8570ea5f879f56b"
+          ],
+          "transactionHash": "0xe107afa2a8802a4ee39492e8a64c1833de877461aa4deab99270acb5f3229f76",
+          "transactionIndex": 0
+        }
+      ],
+      "logsBloom": "0x00000004000000000000400000000000000000000000000000000400000000000000000010000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000000020000000000000000000180000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001000000000000000000000000000200000000000001400000000002000000100000000000000000000000000000400000000000000000000000000000000800000000100000000",
+      "status": 1,
+      "to": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    },
+    "onChain": true
   }
 ]

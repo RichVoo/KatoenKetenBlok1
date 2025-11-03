@@ -74,10 +74,24 @@
                     </div>
                 </div>
                 <div class='form-group'>
-                    <label>Email</label>
+                    <label>Email *</label>
                     <input id='contact' type='email' placeholder='jan@example.com'>
                 </div>
-                <button id='registerBtn' class='button'>Registreer DID</button>
+                <button id='requestBtn' class='button'>Vraag Verificatie Code Aan</button>
+            </div>
+
+            <div id='verify-step' class='hidden'>
+                <h3>📧 Verificatie Code</h3>
+                <div class='info'>
+                    <p>Een 6-cijferige verificatie code is verstuurd naar je email (check de console logs).</p>
+                    <p>De code is 10 minuten geldig.</p>
+                </div>
+                <div class='form-group'>
+                    <label>Verificatie Code *</label>
+                    <input id='verificationCode' placeholder='123456' maxlength='6'>
+                </div>
+                <button id='verifyBtn' class='button'>Verifieer en Maak Wallet Aan</button>
+                <button id='backBtn' class='button button-secondary' style='margin-left:8px'>Terug</button>
             </div>
 
             <div id='progress-step' class='hidden'>

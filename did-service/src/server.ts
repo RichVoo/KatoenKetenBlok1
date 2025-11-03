@@ -42,7 +42,39 @@ async function writeJson(filePath: string, data: any) {
     await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
 }
 
-const pendingVerifications = new Map<string, any>();
+const VERIFY_FILE = path.join(DATA_DIR, 'verifications.json');
+
+async function readVerifications() {
+    try {
+        const data = await readJson(VERIFY_FILE);
+        // Clean up expired codes (older than 10 minutes)
+        const now = Date.now();
+        const valid = data.filter((v: any) => now - v.timestamp < 10 * 60 * 1000);
+        if (valid.length !== data.length) {
+            await writeJson(VERIFY_FILE, valid);
+        }
+        return valid;
+    } catch (e) {
+        return [];
+    }
+}
+
+async function saveVerification(code: string, data: any) {
+    const verifications = await readVerifications();
+    verifications.push({ code, ...data, timestamp: Date.now() });
+    await writeJson(VERIFY_FILE, verifications);
+}
+
+async function getVerification(code: string) {
+    const verifications = await readVerifications();
+    return verifications.find((v: any) => v.code === code);
+}
+
+async function deleteVerification(code: string) {
+    const verifications = await readVerifications();
+    const filtered = verifications.filter((v: any) => v.code !== code);
+    await writeJson(VERIFY_FILE, filtered);
+}
 
 function generateVerificationCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString();
@@ -220,12 +252,16 @@ app.post('/api/request-verification', async (req, res) => {
             return res.status(400).json({ error: 'This URN is already registered' });
         }
 
+        // Remove old verification codes for this URN
+        const allVerifications = await readVerifications();
+        const filtered = allVerifications.filter((v: any) => v.urn.toLowerCase() !== urn.toLowerCase());
+        await writeJson(VERIFY_FILE, filtered);
+
         const code = generateVerificationCode();
 
-        pendingVerifications.set(code, {
+        await saveVerification(code, {
             naam, bedrijfsnaam, urn, email, telefoon,
-            didType: didType || 'organization',
-            timestamp: Date.now()
+            didType: didType || 'organization'
         });
 
         await sendVerificationEmail(email, code, naam, urn);
@@ -245,18 +281,18 @@ app.post('/api/verify-and-create-wallet', async (req, res) => {
             return res.status(400).json({ error: 'Verification code required' });
         }
 
-        const verificationData = pendingVerifications.get(verificationCode);
+        const verificationData = await getVerification(verificationCode);
         if (!verificationData) {
             return res.status(400).json({ error: 'Invalid or expired verification code' });
         }
 
         if (Date.now() - verificationData.timestamp > 10 * 60 * 1000) {
-            pendingVerifications.delete(verificationCode);
+            await deleteVerification(verificationCode);
             return res.status(400).json({ error: 'Verification code expired' });
         }
 
         const { naam, bedrijfsnaam, urn, email, telefoon, didType } = verificationData;
-        pendingVerifications.delete(verificationCode);
+        await deleteVerification(verificationCode);
 
         const wallet = await createWallet();
         const did = wallet.did;
@@ -292,14 +328,7 @@ app.post('/api/verify-and-create-wallet', async (req, res) => {
 
         console.log(`DID Created: ${did} for ${naam} (${bedrijfsnaam})`);
 
-        res.json({ 
-            success: true, 
-            did: registration.did,
-            address: registration.walletAddress,
-            privateKey: registration.privateKey,
-            publicKey: 'auto-generated-key',
-            registration 
-        });
+        res.json(registration);
     } catch (e) {
         console.error('Error verifying and creating wallet:', e);
         res.status(500).json({ error: 'Registration failed' });

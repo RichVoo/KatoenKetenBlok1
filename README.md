@@ -1,14 +1,15 @@
 # 🌾 Vertrouwen in de Katoenketen via Web3 - POC
 
 ## 📋 Overzicht
-Een complete Web3-gebaseerde supply chain applicatie voor de katoenindustrie die transparantie en vertrouwen creëert van boer tot consument via blockchain technologie, IoT monitoring en smart incentive-mechanismen.
+Een complete Web3-gebaseerde supply chain applicatie voor de katoenindustrie die transparantie en vertrouwen creëert van boer tot consument via blockchain technologie, Decentralized Identity (DID), IoT monitoring en smart incentive-mechanismen.
 
 ## 🎯 Kernfunctionaliteiten
 - ✅ **Digital Product Passport (DPP)** - Volledige traceerbaarheid per batch
+- ✅ **Decentralized Identity (DID)** - Verificeerbare identiteiten met email verificatie
+- ✅ **Role-Based Access Control** - 5 supply chain rollen (Farmer, Processor, Manufacturer, Retailer, Auditor)
+- ✅ **Custom Wallet Import** - Gebruik je eigen geregistreerde DID wallet
 - ✅ **Automatische IoT Simulatie** - 17 meetpunten door complete supply chain
-- ✅ **Role-Based Access Control** - Boer, Transporteur, Certificeerder, Fabriek
 - ✅ **USDT Betalingen** - Stablecoin betalingen met kwaliteitsbonussen
-- ✅ **Decentralized Identity (DID)** - Verificeerbare identiteiten voor stakeholders
 - ✅ **Verifiable Credentials (VC)** - Certificeringen on-chain
 - ✅ **Real-time Tracking** - Complete supply chain visibility
 - ✅ **Public DPP Viewer** - Transparantie voor consumenten
@@ -28,20 +29,34 @@ Een complete Web3-gebaseerde supply chain applicatie voor de katoenindustrie die
 - Faucet functie voor testing
 - Admin mint capabilities
 
-### Backend (Node.js/Express)
-- Minimal backend (alleen health check)
-- Geen database - alles on-chain
+### DID Service (TypeScript/Express - Port 3002)
+**Decentralized Identity Service** met:
+- DID registratie met email verificatie (6-digit code, 10 min geldig)
+- Wallet aanmaken (Ethereum wallet + DID document)
+- On-chain DID registratie via smart contract
+- Verificatie codes opgeslagen in JSON (persistent bij herstart)
+- Role-based registration (farmer, processor, manufacturer, retailer, auditor)
+- API endpoints:
+  - `POST /api/request-verification` - Vraag verificatie code aan
+  - `POST /api/verify-and-create-wallet` - Verifieer code en maak wallet
+  - `POST /api/register-on-chain` - Registreer DID on-chain met nonce management
+  - `GET /api/registrations` - Lijst van alle DIDs
 
-### Frontend (Vanilla JavaScript + Ethers.js v6)
-**`stakeholder.html`** - Role-based dashboards:
-- 👨‍🌾 Boer: Batch aanmaken (auto quality 60-100)
-- 🚛 Transporteur: IoT tracking (auto-generate 17 records)
-- 🔬 Certificeerder: Verifiable Credentials uitgeven
-- 🏭 Fabriek: Status updates & quality checks
+### Frontend (Vanilla JavaScript + Ethers.js v6 - Port 8000)
+**`stakeholder.html`** - Main dashboard:
+- � Import custom DID wallet (private key)
+- Role selection: Admin, Farmer, Transporter, Certifier, Factory, Custom DID
+- Role-based dashboards met volledige supply chain functionaliteit
+- Link naar DID registratie pagina
 
-**`integrated.html`** - Complete flow demonstratie
+**`register.html`** - DID Registration:
+- Formulier met email verificatie flow
+- 6-digit verificatie code (getoond in DID service console)
+- Wallet aanmaken + on-chain registratie
+- Private key output (om te importeren in stakeholder.html)
+- Lijst van alle geregistreerde DIDs met rol badges
 
-**`dpp-viewer.html`** - **Public DPP Viewer** voor consumenten:
+**`dpp-viewer.html`** - Public DPP Viewer:
 - Zoek per Batch ID
 - Visualiseer complete supply chain
 - Timeline met alle transport stappen
@@ -69,74 +84,104 @@ Dit installeert alle dependencies automatisch!
 Dit start automatisch:
 1. 🔗 **Hardhat local blockchain** (localhost:8545)
 2. 📜 **Deploy contracts** (USDT + IntegratedCottonDPP)
-3. 🔐 **Setup roles** (Boer, Transporteur, Certificeerder, Fabriek)
-4. 💵 **Mint USDT** (100,000 naar elk account)
-5. 📝 **Register DIDs** (Alle stakeholders)
-6. � **DID Registration Service** (localhost:3002) - **NEW!**
-7. �🖥️ **Backend server** (localhost:3001)
-8. 🌐 **Frontend server** (localhost:8000)
+3. 🔐 **Setup roles** (Admin + 4 test stakeholders)
+4. 🔌 **DID Service** (localhost:3002) - Email verificatie & wallet creation
+5. 🌐 **Frontend server** (localhost:8000) - Python HTTP server
+
+**⚠️ Belangrijk:** Start.ps1 moet draaien in één PowerShell venster om alle services te beheren!
 
 ### 🌐 Access Points
 
-**🔐 DID Management (NEW - Verification System):**
-```
-http://localhost:8000/did-management.html
-```
-
-**👥 Stakeholder Dashboard (Role-based):**
+**👥 Main Dashboard (START HERE):**
 ```
 http://localhost:8000/stakeholder.html
 ```
+- Import wallet of selecteer test account
+- Kies je rol en gebruik het dashboard
 
-**🔄 Complete Flow Demo:**
+**🔐 DID Registratie:**
 ```
-http://localhost:8000/integrated.html
+http://localhost:8000/register.html
 ```
+- Nieuwe DID aanmaken met email verificatie
+- Ontvang private key om te importeren
 
 **📱 Public DPP Viewer:**
 ```
 http://localhost:8000/dpp-viewer.html
 ```
+- Bekijk batch informatie (publiek toegankelijk)
 
 **🔌 DID Service API:**
 ```
 http://localhost:3002/health
 ```
+- Backend service voor DID registratie
 
 ## 🔧 Manual Setup (indien gewenst)
 
 ### 1. Dependencies Installeren
-```bash
+```powershell
 # Smart contracts
 cd contracts
 npm install
 
-# Backend
-cd ../backend
+# DID Service
+cd ../did-service
 npm install
 ```
 
 ### 2. Lokale Blockchain Starten
-```bash
+```powershell
 cd contracts
 npx hardhat node
 ```
 
 ### 3. Contracts Deployen
-```bash
+```powershell
 # Nieuw terminal venster
 cd contracts
 npx hardhat run scripts/deploy.js --network localhost
 npx hardhat run scripts/setup.js --network localhost
 ```
 
-### 4. Frontend Starten
-```bash
+### 4. DID Service Starten
+```powershell
+cd did-service
+npm start
+```
+
+### 5. Frontend Starten
+```powershell
 cd frontend/public
 python -m http.server 8000
 ```
 
-## 📊 Complete Supply Chain Flow
+## � DID Registratie Workflow
+
+### Nieuwe DID Aanmaken:
+1. **Open** `http://localhost:8000/register.html`
+2. **Vul formulier in:**
+   - Volledige naam
+   - Bedrijfsnaam
+   - URN (Udyog Registration Number)
+   - Email adres (verplicht!)
+   - Rol (Farmer, Processor, Manufacturer, Retailer, Auditor)
+3. **Klik** "Vraag Verificatie Code Aan"
+4. **Kopieer** de 6-digit code uit de DID service terminal
+5. **Voer code in** en klik "Verifieer en Maak Wallet Aan"
+6. **Kopieer je Private Key** (belangrijk!)
+7. **Ga naar** `stakeholder.html` → "Import DID Wallet" → Plak private key
+8. **Selecteer** "Custom DID" rol om je eigen wallet te gebruiken
+
+### Features:
+- ✅ Email verificatie (code geldig 10 minuten)
+- ✅ Persistent opslag (codes blijven bij herstart)
+- ✅ On-chain DID registratie via smart contract
+- ✅ Automatische nonce management (geen nonce errors)
+- ✅ Lijst van alle geregistreerde DIDs met status
+
+## �📊 Complete Supply Chain Flow
 
 ### 1. 👨‍🌾 Boer (Farmer)
 **Selecteer rol "Boer" in stakeholder dashboard**
@@ -410,25 +455,39 @@ npx hardhat coverage
 ## 📁 Project Structuur
 ```
 Poc#1/
-├── contracts/                    # Smart contracts
+├── contracts/                       # Smart contracts (Hardhat)
 │   ├── contracts/
-│   │   ├── IntegratedCottonDPP.sol  # Main contract
-│   │   └── USDTMock.sol             # USDT token
+│   │   ├── IntegratedCottonDPP.sol     # Main contract (DID + VC + Batches + IoT)
+│   │   └── USDTMock.sol                # USDT ERC20 token
 │   ├── scripts/
-│   │   ├── deploy.js                # Deploy script
-│   │   └── setup.js                 # Setup roles & data
+│   │   ├── deploy.js                   # Deploy beide contracts
+│   │   └── setup.js                    # Setup admin + test accounts
+│   ├── artifacts/                      # Compiled contracts
+│   ├── deployed-addresses.json         # Contract addresses
 │   └── hardhat.config.js
-├── backend/                      # Express backend
-│   └── server.js                 # Health check only
-├── frontend/public/              # Frontend (Vanilla JS)
-│   ├── stakeholder.html          # Role-based dashboards
-│   ├── stakeholder-app.js
-│   ├── integrated.html           # Complete flow demo
-│   ├── integrated-app.js
-│   ├── dpp-viewer.html          # Public DPP viewer
-│   └── dpp-viewer-app.js
-├── setup.ps1                    # Setup dependencies
-└── start.ps1                    # Start all services
+│
+├── did-service/                     # DID Registration Service (TypeScript)
+│   ├── src/
+│   │   ├── server.ts                   # Express API server
+│   │   └── blockchain.ts               # Ethers.js wallet utils
+│   ├── data/
+│   │   ├── registrations.json          # DID registrations
+│   │   └── verifications.json          # Verification codes
+│   ├── dist/                           # Compiled JavaScript
+│   └── package.json
+│
+├── frontend/public/                 # Frontend (Vanilla JS + Ethers.js v6)
+│   ├── stakeholder.html                # Main dashboard
+│   ├── stakeholder-app.js              # Dashboard logic
+│   ├── register.html                   # DID registration UI
+│   ├── register-app.js                 # Registration logic
+│   ├── dpp-viewer.html                 # Public DPP viewer
+│   └── dpp-viewer-app.js               # Viewer logic
+│
+├── setup.ps1                        # Install all dependencies
+├── start.ps1                        # Start all services (ONE COMMAND!)
+├── README.md                        # This file
+└── INSTALLATION.md                  # Detailed installation guide
 ```
 
 ## 🌍 UN Sustainable Development Goals
