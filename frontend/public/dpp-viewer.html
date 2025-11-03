@@ -345,6 +345,135 @@
             color: #1e3a8a;
         }
 
+        .cert-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 16px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .cert-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+        }
+
+        .cert-info-box {
+            background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+            border: 2px solid #8b5cf6;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .cert-info-box h3 {
+            color: #5b21b6;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .cert-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .cert-stat {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .cert-stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 5px;
+        }
+
+        .cert-stat-label {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        .impact-box {
+            margin-top: 24px;
+            padding: 20px;
+            background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+            border: 2px solid #93c5fd;
+            border-radius: 12px;
+            color: #0f172a;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .impact-box.co2 {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border-color: #f59e0b;
+        }
+
+        .impact-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .impact-icon {
+            font-size: 34px;
+        }
+
+        .impact-title {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .impact-stat {
+            font-size: 28px;
+            font-weight: 700;
+            color: #0369a1;
+        }
+
+        .impact-box.co2 .impact-stat {
+            color: #92400e;
+        }
+
+        .impact-details {
+            font-size: 14px;
+            color: #475569;
+            margin-top: 5px;
+        }
+
+        .impact-list {
+            margin: 8px 0 0 18px;
+            color: #475569;
+            font-size: 13px;
+        }
+
+        @media (max-width: 768px) {
+            .impact-box {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+
         @media (max-width: 768px) {
             .dpp-product-info {
                 grid-template-columns: 1fr;

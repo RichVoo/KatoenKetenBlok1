@@ -1,0 +1,1525 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Product Passport Flow - Katoenketen</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .subtitle {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+
+        .flow-container {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            margin-bottom: 30px;
+        }
+
+        .phase-header {
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            color: white;
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .phase-icon {
+            font-size: 36px;
+        }
+
+        .stage {
+            display: grid;
+            grid-template-columns: 80px 1fr 350px;
+            gap: 20px;
+            align-items: start;
+            margin-bottom: 30px;
+            position: relative;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 15px;
+            border-left: 5px solid #3b82f6;
+            transition: all 0.3s ease;
+        }
+
+        .stage:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(59, 130, 246, 0.2);
+        }
+
+        .stage-number {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .stage-main {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .stage-title {
+            font-size: 20px;
+            color: #1e293b;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .actor-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            border: 2px solid #e2e8f0;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #475569;
+        }
+
+        .actor-badge.primary {
+            border-color: #3b82f6;
+            color: #1e3a8a;
+            background: #dbeafe;
+        }
+
+        .stage-description {
+            color: #475569;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+
+        .stage-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .action-tag {
+            background: white;
+            border: 2px solid #e2e8f0;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #64748b;
+        }
+
+        .action-tag.blockchain {
+            border-color: #f59e0b;
+            color: #f59e0b;
+            background: #fef3c7;
+        }
+
+        .action-tag.iot {
+            border-color: #8b5cf6;
+            color: #8b5cf6;
+            background: #ede9fe;
+        }
+
+        .action-tag.dpp {
+            border-color: #06b6d4;
+            color: #06b6d4;
+            background: #cffafe;
+        }
+
+        .data-box {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            border: 2px solid #e2e8f0;
+        }
+
+        .data-title {
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 12px;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .data-item {
+            display: flex;
+            align-items: start;
+            gap: 10px;
+            margin-bottom: 8px;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .info-banner {
+            background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+            border: 2px solid #8b5cf6;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            color: #5b21b6;
+            display: flex;
+            align-items: start;
+            gap: 15px;
+        }
+
+        .info-icon {
+            font-size: 28px;
+            flex-shrink: 0;
+        }
+
+        .info-content strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+
+        /* DPP Viewer Styles */
+        .dpp-viewer {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .dpp-header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #1e3a8a, #3b82f6);
+            border-radius: 15px;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .dpp-header h2 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .dpp-product-info {
+            display: grid;
+            grid-template-columns: 200px 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8fafc;
+            border-radius: 15px;
+        }
+
+        .product-image {
+            width: 200px;
+            height: 200px;
+            background: linear-gradient(135deg, #e0e7ff, #dbeafe);
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            border: 3px solid #3b82f6;
+        }
+
+        .product-details {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .product-details h3 {
+            color: #1e293b;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            gap: 10px;
+            font-size: 15px;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #475569;
+            min-width: 120px;
+        }
+
+        .detail-value {
+            color: #1e293b;
+        }
+
+        .qr-code {
+            width: 150px;
+            height: 150px;
+            background: white;
+            border: 3px solid #3b82f6;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 80px;
+            margin-left: auto;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+            margin-top: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, #3b82f6, #06b6d4);
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 30px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -44px;
+            top: 20px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border: 4px solid #3b82f6;
+            border-radius: 50%;
+            box-shadow: 0 0 0 4px white;
+        }
+
+        .timeline-item.completed::before {
+            background: #10b981;
+            border-color: #10b981;
+        }
+
+        .timeline-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+
+        .timeline-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1e293b;
+        }
+
+        .timeline-date {
+            font-size: 13px;
+            color: #64748b;
+            background: white;
+            padding: 5px 12px;
+            border-radius: 6px;
+        }
+
+        .timeline-content {
+            color: #475569;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .timeline-data {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .data-badge {
+            background: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            font-size: 13px;
+        }
+
+        .data-badge strong {
+            color: #1e293b;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .data-badge span {
+            color: #64748b;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-badge.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .verification-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            border-radius: 15px;
+            border: 2px solid #10b981;
+        }
+
+        .verification-section h3 {
+            color: #065f46;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .verification-items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .verification-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .verification-icon {
+            font-size: 24px;
+        }
+
+        .verification-text {
+            flex: 1;
+        }
+
+        .verification-text strong {
+            display: block;
+            color: #1e293b;
+            font-size: 14px;
+            margin-bottom: 3px;
+        }
+
+        .verification-text span {
+            color: #64748b;
+            font-size: 12px;
+        }
+
+        @media (max-width: 1024px) {
+            .stage {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .stage-number {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+
+            .dpp-product-info {
+                grid-template-columns: 1fr;
+            }
+
+            .qr-code {
+                margin-left: 0;
+            }
+
+            .timeline-data {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- DPP Viewer Example -->
+    <div class="dpp-viewer">
+        <div class="dpp-header">
+            <h2>📱 Digital Product Passport Voorbeeld</h2>
+            <p style="opacity: 0.9; margin-top: 10px;">Bekijk het volledige DPP van een katoenen T-shirt</p>
+        </div>
+
+        <div class="dpp-product-info">
+            <div>
+                <div class="product-image">👕</div>
+            </div>
+            <div class="product-details">
+                <h3>Biologisch Katoenen T-Shirt</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Product ID:</span>
+                    <span class="detail-value">DPP-2024-KT-00789</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Merk:</span>
+                    <span class="detail-value">GreenWear Sustainable</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Maat:</span>
+                    <span class="detail-value">Medium</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Kleur:</span>
+                    <span class="detail-value">Natuurlijk Wit</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Materiaal:</span>
+                    <span class="detail-value">100% Biologisch Katoen</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Productiedatum:</span>
+                    <span class="detail-value">15 September 2024</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Status:</span>
+                    <span class="status-badge success">✅ Volledig Getraceerd</span>
+                </div>
+            </div>
+        </div>
+        </style>
+
+        <div class="cert-overview" style="margin-bottom:30px;">
+            <div class="cert-summary-box"
+                style="background:linear-gradient(135deg,#ede9fe,#ddd6fe);border:2px solid #8b5cf6;border-radius:15px;padding:25px;margin-bottom:25px;">
+                <h3 style="color:#5b21b6;font-size:20px;margin-bottom:15px;display:flex;align-items:center;gap:10px;">
+                    📜 Blockchain Verificatie &amp; Certificaten
+                </h3>
+                <div
+                    style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
+                    <div style="background:white;padding:15px;border-radius:10px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:#1e3a8a;">18</div>
+                        <div style="font-size:14px;color:#64748b;">Totaal Certificaten</div>
+                    </div>
+                    <div style="background:white;padding:15px;border-radius:10px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:#1e3a8a;">8</div>
+                        <div style="font-size:14px;color:#64748b;">Stakeholders</div>
+                    </div>
+                    <div style="background:white;padding:15px;border-radius:10px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:#1e3a8a;">100%</div>
+                        <div style="font-size:14px;color:#64748b;">Blockchain Verified</div>
+                    </div>
+                    <div style="background:white;padding:15px;border-radius:10px;text-align:center;">
+                        <div style="font-size:28px;font-weight:bold;color:#1e3a8a;">12</div>
+                        <div style="font-size:14px;color:#64748b;">Int. Standaarden</div>
+                    </div>
+                </div>
+                <button onclick="window.location.href='certificate_viewer.html'"
+                    style="background:#3b82f6;color:white;border:none;padding:10px 18px;border-radius:10px;cursor:pointer;font-weight:700;"
+                    type="button">
+                    Bekijk alle certificaten
+                </button>
+            </div>
+        </div>
+
+        <div class="revenue-container" aria-label="Verdeling van opbrengst tussen ketenpartners">
+            <div class="revenue-header">
+                <div>
+                    <div class="revenue-title">💸 Verdeling van opbrengst binnen de keten</div>
+                    <div class="revenue-sub">Benadering: percentage van de productiewaarde per stakeholder</div>
+                </div>
+                <div class="revenue-sub" style="font-weight:700; color:#0f172a;">Totaal: 100%</div>
+            </div>
+
+            <!-- bar -->
+            <div class="revenue-bar" id="revenueBar" role="img"
+                aria-label="Horizontale balk met procentuele verdeling per stakeholder">
+                <!-- segments worden door JS toegevoegd -->
+            </div>
+
+            <!-- legend -->
+            <div class="revenue-legend" id="revenueLegend" aria-hidden="false" style="margin-top:14px;">
+                <!-- legend items door JS -->
+            </div>
+        </div>
+
+        <script>
+            (function () {
+                // Stel hier de percentages en labels in
+                const shares = [
+                    { key: 'Boer', pct: 6, className: 'seg-farmer' },
+                    { key: 'Transport', pct: 10, className: 'seg-transport' },
+                    { key: 'Verwerker (Ginning)', pct: 8, className: 'seg-ginner' },
+                    { key: 'Spinnerij (Garen)', pct: 15, className: 'seg-spinner' },
+                    { key: 'Weverij (Stof)', pct: 18, className: 'seg-weaver' },
+                    { key: 'Confectiefabriek', pct: 43, className: 'seg-factory' }
+                ];
+
+                const bar = document.getElementById('revenueBar');
+                const legend = document.getElementById('revenueLegend');
+
+                // Maak segments
+                shares.forEach(item => {
+                    const seg = document.createElement('div');
+                    seg.className = 'segment ' + item.className;
+                    // gebruik flex-basis op percentage voor correcte breedte, met min width fallback
+                    seg.style.flex = `0 0 ${item.pct}%`;
+                    seg.style.maxWidth = `${item.pct}%`;
+                    seg.setAttribute('title', `${item.key}: ${item.pct}%`);
+                    // label weergave: als segment te smal is, toon alleen pct via aria-label
+                    const minLabelWidth = 8; // px threshold, browsers handle text crop
+                    seg.innerHTML = `${item.pct}% ${item.key}`;
+                    bar.appendChild(seg);
+
+                    // legend item
+                    const li = document.createElement('div');
+                    li.className = 'legend-item';
+                    li.innerHTML = `<span class="legend-color" style="background:${getComputedStyle(seg).backgroundColor || ''}"></span><span>${item.key} — ${item.pct}%</span>`;
+                    legend.appendChild(li);
+                });
+
+                // Accessibility: ensure bar has descriptive aria value
+                const ariaParts = shares.map(s => `${s.key} ${s.pct} percent`);
+                bar.setAttribute('aria-label', 'Verdeling opbrengst: ' + ariaParts.join(', '));
+
+            })();
+        </script>
+
+        <!-- Gemiddeld watergebruik -->
+        <style>
+            .water-usage {
+                margin-top: 24px;
+                padding: 20px;
+                background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+                border: 2px solid #93c5fd;
+                border-radius: 12px;
+                color: #0f172a;
+                display: flex;
+                gap: 20px;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .water-usage .wu-left {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .water-usage .wu-stat {
+                font-size: 28px;
+                font-weight: 700;
+                color: #0369a1;
+            }
+
+            .water-usage .wu-details {
+                font-size: 14px;
+                color: #475569;
+            }
+
+            .water-usage .wu-chart {
+                width: 140px;
+                height: 140px;
+                background: white;
+                border-radius: 12px;
+                border: 3px solid #3b82f6;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                font-weight: 700;
+            }
+
+            @media (max-width: 1024px) {
+                .water-usage {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+
+                .water-usage .wu-chart {
+                    margin-left: 0;
+                    margin-top: 12px;
+                }
+            }
+        </style>
+
+        <div class="water-usage" aria-label="Gemiddeld watergebruik per product">
+            <div class="wu-left">
+                <div style="font-size:34px;">💧</div>
+                <div>
+                    <div style="font-weight:700; font-size:16px;">Gemiddeld watergebruik per T‑shirt</div>
+                    <div class="wu-stat">2.720 L</div>
+                    <div class="wu-details">Gemiddeld totaal waterverbruik (incl. irrigatie, verwerking en wassen).
+                    </div>
+                    <ul style="margin:8px 0 0 18px; color:#475569; font-size:13px;">
+                        <li>Irrigatie: ~85% (~2.312 L)</li>
+                        <li>Verwerking & wassen: ~10% (~272 L)</li>
+                        <li>Overig: ~5% (~136 L)</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Gemiddeld watergebruik (vast ingesteld op 2.500 L) -->
+            <style>
+                .water-usage {
+                    margin-top: 24px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+                    border: 2px solid #93c5fd;
+                    border-radius: 12px;
+                    color: #0f172a;
+                    display: flex;
+                    gap: 20px;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .water-usage .wu-left {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }
+
+                .water-usage .wu-stat {
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #0369a1;
+                }
+
+                .water-usage .wu-details {
+                    font-size: 14px;
+                    color: #475569;
+                }
+
+                .water-usage .wu-chart {
+                    width: 140px;
+                    height: 140px;
+                    background: white;
+                    border-radius: 12px;
+                    border: 3px solid #3b82f6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                    font-weight: 700;
+                }
+
+                @media (max-width: 1024px) {
+                    .water-usage {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .water-usage .wu-chart {
+                        margin-left: 0;
+                        margin-top: 12px;
+                    }
+                }
+            </style>
+
+            <div class="water-usage" aria-label="Gemiddeld watergebruik per product">
+                <div class="wu-left">
+                    <div style="font-size:34px;">💧</div>
+                    <div>
+                        <div style="font-weight:700; font-size:16px;">Watergebruikt voor dit T‑shirt</div>
+                        <div class="wu-stat" id="wu-liters">2.523 L</div>
+                        <div class="wu-details" id="wu-details">Gemiddeld totaal waterverbruik (incl. irrigatie,
+                            verwerking en wassen).</div>
+                        <ul style="margin:8px 0 0 18px; color:#475569; font-size:13px;">
+                            <li id="wu-irrigation">Irrigatie: ~85% (~2.145 L)</li>
+                            <li id="wu-processing">Verwerking & wassen: ~10%(~252 L)</li>
+                            <li id="wu-other">Overig: ~5% (~126 L)</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Gemiddeld watergebruik -->
+        <style>
+            .water-usage {
+                margin-top: 24px;
+                padding: 20px;
+                background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+                border: 2px solid #93c5fd;
+                border-radius: 12px;
+                color: #0f172a;
+                display: flex;
+                gap: 20px;
+                align-items: center;
+                justify-content: space-between;
+            }
+
+            .water-usage .wu-left {
+                display: flex;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .water-usage .wu-stat {
+                font-size: 28px;
+                font-weight: 700;
+                color: #0369a1;
+            }
+
+            .water-usage .wu-details {
+                font-size: 14px;
+                color: #475569;
+            }
+
+            .water-usage .wu-chart {
+                width: 140px;
+                height: 140px;
+                background: white;
+                border-radius: 12px;
+                border: 3px solid #3b82f6;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 20px;
+                font-weight: 700;
+            }
+
+            @media (max-width: 1024px) {
+                .water-usage {
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+
+                .water-usage .wu-chart {
+                    margin-left: 0;
+                    margin-top: 12px;
+                }
+            }
+        </style>
+
+        <div class="water-usage" aria-label="Gemiddeld watergebruik per product">
+            <div class="wu-left">
+                <div style="font-size:34px;">💨</div>
+                <div>
+                    <div style="font-weight:700; font-size:16px;">Gemiddeld CO2 uitstoting per T‑shirt</div>
+                    <div class="wu-stat">4,95 kg</div>
+                </div>
+            </div>
+
+            <!-- Gemiddeld watergebruik (vast ingesteld op 2.500 L) -->
+            <style>
+                .water-usage {
+                    margin-top: 24px;
+                    padding: 20px;
+                    background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+                    border: 2px solid #93c5fd;
+                    border-radius: 12px;
+                    color: #0f172a;
+                    display: flex;
+                    gap: 20px;
+                    align-items: center;
+                    justify-content: space-between;
+                }
+
+                .water-usage .wu-left {
+                    display: flex;
+                    gap: 12px;
+                    align-items: center;
+                }
+
+                .water-usage .wu-stat {
+                    font-size: 28px;
+                    font-weight: 700;
+                    color: #0369a1;
+                }
+
+                .water-usage .wu-details {
+                    font-size: 14px;
+                    color: #475569;
+                }
+
+                .water-usage .wu-chart {
+                    width: 140px;
+                    height: 140px;
+                    background: white;
+                    border-radius: 12px;
+                    border: 3px solid #3b82f6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 20px;
+                    font-weight: 700;
+                }
+
+                @media (max-width: 1024px) {
+                    .water-usage {
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+
+                    .water-usage .wu-chart {
+                        margin-left: 0;
+                        margin-top: 12px;
+                    }
+                }
+            </style>
+
+            <div class="water-usage" aria-label="Gemiddeld watergebruik per product">
+                <div class="wu-left">
+                    <div style="font-size:34px;">💨</div>
+                    <div>
+                        <div style="font-weight:700; font-size:16px;">CO2-uitstoot voor dit T‑shirt</div>
+                        <div class="wu-stat" id="wu-liters">4,2 kg</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <h3
+            style="color: #1e293b; font-size: 22px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+            <span>🗺️</span> Supply Chain Tijdlijn
+        </h3>
+
+        <div class="timeline">
+            <!-- Step 1: Boer -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">👨‍🌾 Stap 1: Katoenoogst bij Boer</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">
+                            Rajesh Kumar - Gujarat, India
+                        </div>
+
+                        <!-- Buttons verplaatst naar linkerkolom zodat ze echt links uitlijnen -->
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://www.boerboer.nl/','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date" style="text-align: center;">💨 CO2-uitstoot: 0,25kg/t-shirt (gem
+                            0,3kg)</div>
+                        <div class="timeline-date">📅 1 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Biologische katoen geoogst op gecertificeerde boerderij. Deze batch van 500kg voldoet aan alle
+                    bio-certificeringen en is geteeld zonder pesticides.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Locatie</strong><span>23.0225° N, 72.5714° E</span></div>
+                    <div class="data-badge"><strong>Hoeveelheid</strong><span>500 kg ruwe katoen</span></div>
+                    <div class="data-badge"><strong>Katoensoort</strong><span>Gossypium hirsutum</span></div>
+                    <div class="data-badge"><strong>Kwaliteitsscore</strong><span>95/100 - Uitstekend</span></div>
+                    <div class="data-badge"><strong>Certificaten</strong><span>GOTS, Fair Trade</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x7f3a...b29c</span></div>
+                </div>
+            </div>
+
+            <!-- Step 2: Transport naar Ginning -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🚛 Stap 2: Transport naar Verwerker</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">LogiCotton Transport Services
+                        </div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://www.dhl.com/nl-nl/home.html?locale=true','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date">📅 2-3 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Transport van 280km met real-time IoT monitoring. Alle condities binnen optimale parameters gebleven
+                    tijdens 18 uur transport.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Route</strong><span>Gujarat → Maharashtra</span></div>
+                    <div class="data-badge"><strong>Duur</strong><span>18 uur, 280 km</span></div>
+                    <div class="data-badge"><strong>Temperatuur</strong><span>22-28°C (Optimaal)</span></div>
+                    <div class="data-badge"><strong>Luchtvochtigheid</strong><span>45-55% (Goed)</span></div>
+                    <div class="data-badge"><strong>GPS Tracking</strong><span>✅ Volledig getraceerd</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x9c2b...4e7a</span></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Ginning -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🏭 Stap 3: Verwerking bij Ginning</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">Maharashtra Cotton Processing
+                            Ltd.</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://www.stokerijklopman.nl/','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date" style="text-align: center;">💨 CO2-uitstoot: 0,05kg/t-shirt (gem
+                            0,05kg)</div>
+                        <div class="timeline-date">📅 4-5 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Professionele ginning verwijderde zaden en onzuiverheden. Output van 320kg gekeerde katoen met
+                    uitstekende vezelkwaliteit.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Input/Output</strong><span>500kg → 320kg (64%)</span></div>
+                    <div class="data-badge"><strong>Vezellengte</strong><span>30.2 mm (Superior)</span></div>
+                    <div class="data-badge"><strong>Vezelsterkte</strong><span>32.5 g/tex</span></div>
+                    <div class="data-badge"><strong>Zuiverheid</strong><span>98.5%</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x4d8f...7c3e</span></div>
+                </div>
+            </div>
+
+            <!-- Step 4: Transport naar Spinnerij -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🚛 Stap 4: Transport naar Spinnerij</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">LogiCotton Transport Services
+                        </div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://www.dhl.com/nl-nl/home.html?locale=true','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date">📅 6-7 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Gekoelde transport naar spinnerij in Tamil Nadu. Optimale condities behouden gedurende 24 uur
+                    transport.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Route</strong><span>Maharashtra → Tamil Nadu</span></div>
+                    <div class="data-badge"><strong>Afstand</strong><span>1,250 km</span></div>
+                    <div class="data-badge"><strong>Temperatuur</strong><span>20-25°C (Optimaal)</span></div>
+                    <div class="data-badge"><strong>Conditie</strong><span>✅ Uitstekend</div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x2a7c...9f4b</span></div>
+                </div>
+            </div>
+
+            <!-- Step 5: Spinnerij -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🧵 Stap 5: Garenproductie bij Spinnerij</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">Tamil Spinning Mills</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://spinnerijoosterveld.nl/','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date" style="text-align: center;">💨 CO2-uitstoot: 0,8kg/t-shirt (gem
+                            0,9kg)</div>
+                        <div class="timeline-date">📅 8-12 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Katoen gesponnen tot hoogwaardig garen geschikt voor kledingproductie. Ring spinning methode
+                    gebruikt voor optimale sterkte.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Garendikte</strong><span>Ne 30/1 (19.7 Tex)</span></div>
+                    <div class="data-badge"><strong>Twist</strong><span>880 TPM</span></div>
+                    <div class="data-badge"><strong>Treksterkte</strong><span>18.5 cN/Tex</span></div>
+                    <div class="data-badge"><strong>Uniformiteit</strong><span>85%</span></div>
+                    <div class="data-badge"><strong>Energieverbruik</strong><span>1.2 kWh/kg</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x8e5d...2b9f</span></div>
+                </div>
+            </div>
+
+            <!-- Step 6: Transport naar Weverij -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🚛 Stap 6: Transport naar Weverij</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">Express Textile Logistics</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://www.dhl.com/nl-nl/home.html?locale=true','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date">📅 13-14 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Lokaal transport binnen Tamil Nadu regio. Korte afstand met perfecte condities.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Afstand</strong><span>85 km</span></div>
+                    <div class="data-badge"><strong>Duur</strong><span>3 uur</span></div>
+                    <div class="data-badge"><strong>Conditie</strong><span>✅ Perfect</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x3f7a...6d2c</span></div>
+                </div>
+            </div>
+
+            <!-- Step 7: Weverij -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🍚 Stap 7: Stofproductie bij Weverij</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">Premium Weaving Works</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://enschedetextielstad.nl/','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date" style="text-align: center;">💨 CO2-uitstoot: 1,2kg/t-shirt (gem
+                            1,4kg)</div>
+                        <div class="timeline-date">📅 15-20 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Garen geweven tot jersey stof met 100% single jersey constructie. Natuurlijke kleuring zonder
+                    chemische bleekmiddelen.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Weefpatroon</strong><span>Single Jersey</span></div>
+                    <div class="data-badge"><strong>Draaddichtheid</strong><span>28 x 24 per cm</span></div>
+                    <div class="data-badge"><strong>Stofbreedte</strong><span>150 cm</span></div>
+                    <div class="data-badge"><strong>Gewicht</strong><span>160 g/m²</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x6b9e...4f8a</span></div>
+                </div>
+            </div>
+
+            <!-- Step 8: Transport naar Confectie -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🚛 Stap 8: Transport naar Confectiefabriek</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">GarmentLink Transport</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('hthttps://www.dhl.com/nl-nl/home.html?locale=true','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date">📅 21-22 Maart 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Transport naar confectiefabriek in Bangladesh. Internationale verzending met volledige
+                    traceerbaarheid.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Route</strong><span>India → Bangladesh</span></div>
+                    <div class="data-badge"><strong>Type</strong><span>Internationaal Transport</span></div>
+                    <div class="data-badge"><strong>Conditie</strong><span>✅ Excellent</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x1c4e...8a7d</span></div>
+                </div>
+            </div>
+
+            <!-- Step 9: Confectiefabriek -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">✂️ Stap 9: Productie bij Confectiefabriek</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">EthicalWear Manufacturing</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://www.rotterdamarchitectuurprijs.nl/vorige-edities/2019/confectiefabriek.html','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date" style="text-align: center;">💨 CO2-uitstoot: 1,9kg/t-shirt (gem
+                            2,3kg)</div>
+                        <div class="timeline-date">📅 25 Maart - 5 April 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    T-shirt geproduceerd in Fair Trade gecertificeerde fabriek. Alle werknemers ontvangen eerlijk loon
+                    en werken onder veilige condities.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Product</strong><span>Basic T-shirt</span></div>
+                    <div class="data-badge"><strong>Maat</strong><span>Medium</span></div>
+                    <div class="data-badge"><strong>Patroon</strong><span>Classic Fit</span></div>
+                    <div class="data-badge"><strong>Kwaliteitscontrole</strong><span>98/100 - Passed</span></div>
+                    <div class="data-badge"><strong>Batch</strong><span>BTH-2024-0789</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x5d2f...9c3b</span></div>
+                </div>
+            </div>
+
+            <!-- Step 10: Transport naar Retailer -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🚛 Stap 10: Verzending naar Europa</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">Global Shipping Solutions</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://www.dhl.com/nl-nl/home.html?locale=true','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date">📅 8 April - 2 Mei 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Zeevracht transport van Bangladesh naar Rotterdam. Carbon-neutrale verzending via gecompenseerde
+                    CO2-uitstoot.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Route</strong><span>Dhaka → Rotterdam</span></div>
+                    <div class="data-badge"><strong>Type</strong><span>Zeevracht (Container)</span></div>
+                    <div class="data-badge"><strong>CO2 Compensatie</strong><span>✅ 100% Carbon Neutral</span></div>
+                    <div class="data-badge"><strong>Conditie</strong><span>✅ Perfect</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x7e8b...4a9f</span></div>
+                </div>
+            </div>
+
+            <!-- Step 11: Retailer -->
+            <div class="timeline-item completed">
+                <div class="timeline-header">
+                    <div>
+                        <div class="timeline-title">🏬 Stap 11: Beschikbaar bij Retailer</div>
+                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">GreenWear Store - Amsterdam</div>
+
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button type="button"
+                                style="background:#149be9;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://nl.gymshark.com/products/gymshark-arrival-oversized-t-shirt-ss-tops-purple-aw25','_blank')">Bekijk</button>
+                            <button type="button"
+                                style="background:#10b981;color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-weight:700;"
+                                onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
+                        </div>
+                    </div>
+
+                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                        <div class="timeline-date">📅 5 Mei 2024</div>
+                    </div>
+                </div>
+
+                <div class="timeline-content">
+                    Product aangekomen in winkel en beschikbaar voor consumenten. Volledige DPP transparantie via
+                    QR-code op label.
+                </div>
+                <div class="timeline-data">
+                    <div class="data-badge"><strong>Locatie</strong><span>Amsterdam, Nederland</span></div>
+                    <div class="data-badge"><strong>Prijs</strong><span>€28</div>
+                    <div class="data-badge"><strong>Voorraad</strong><span>5 stuks beschikbaar</span></div>
+                    <div class="data-badge"><strong>DPP Status</strong><span>✅ Volledig & Geverifieerd</span></div>
+                    <div class="data-badge"><strong>Blockchain TX</strong><span>0x9f3c...7e2d</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verification Section -->
+    <div class="verification-section">
+        <h3>✅ Blockchain Verificatie & Certificaten</h3>
+        <div class="verification-items">
+            <div class="verification-item">
+                <span class="verification-icon">🌱</span>
+                <div class="verification-text">
+                    <strong>GOTS Certificering</strong>
+                    <span>Global Organic Textile Standard</span>
+                </div>
+            </div>
+            <div class="verification-item">
+                <span class="verification-icon">🤝</span>
+                <div class="verification-text">
+                    <strong>Fair Trade</strong>
+                    <span>Eerlijke handel gecertificeerd</span>
+                </div>
+            </div>
+            <div class="verification-item">
+                <span class="verification-icon">⛓️</span>
+                <div class="verification-text">
+                    <strong>Blockchain Verified</strong>
+                    <span>Alle data onveranderbaar vastgelegd</span>
+                </div>
+            </div>
+            <div class="verification-item">
+                <span class="verification-icon">🌍</span>
+                <div class="verification-text">
+                    <strong>Carbon Neutral</strong>
+                    <span>CO2 uitstoot gecompenseerd</span>
+                </div>
+            </div>
+            <div class="verification-item">
+                <span class="verification-icon">💧</span>
+                <div class="verification-text">
+                    <strong>Water Efficient</strong>
+                    <span>50% minder waterverbruik</span>
+                </div>
+            </div>
+            <div class="verification-item">
+                <span class="verification-icon">♻️</span>
+                <div class="verification-text">
+                    <strong>Recyclable</strong>
+                    <span>100% recyclebaar materiaal</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px; padding: 25px; background: #f8fafc; border-radius: 15px;">
+        <p style="color: #64748b; font-size: 14px; line-height: 1.8;">
+            <strong style="color: #1e293b; display: block; margin-bottom: 10px; font-size: 16px;">🔐
+                Gedecentraliseerde Verificatie</strong>
+            Alle data in dit Digital Product Passport is cryptografisch beveiligd en opgeslagen op de
+            blockchain.<br>
+            Elke stakeholder heeft zijn transacties digitaal ondertekend met hun Decentralized Identifier
+            (DID).<br>
+            <strong>Dit product heeft 11 verificatiestappen doorlopen met 100% traceerbaarheid.</strong>
+        </p>
+    </div>
+
+    <style>
+        /* Revenue bar styles */
+        .revenue-container {
+            margin: 28px 0;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 18px;
+            border: 2px solid #e6eefc;
+            box-shadow: 0 6px 20px rgba(2, 6, 23, 0.06);
+        }
+
+        .revenue-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .revenue-title {
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 16px;
+        }
+
+        .revenue-sub {
+            font-size: 13px;
+            color: #64748b;
+        }
+
+        .revenue-bar {
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(90deg, #f8fafc, #f8fafc);
+            border-radius: 10px;
+            overflow: hidden;
+            display: flex;
+            align-items: stretch;
+            border: 1px solid #e6eefc;
+        }
+
+        .segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #062b3a;
+            font-weight: 700;
+            font-size: 13px;
+            white-space: nowrap;
+            padding: 0 6px;
+        }
+
+        .seg-farmer {
+            background: #facc15;
+            color: #0f172a;
+        }
+
+        /* geel */
+        .seg-transport {
+            background: #3b82f6;
+            color: white;
+        }
+
+        /* blauw */
+        .seg-ginner {
+            background: #f97316;
+            color: white;
+        }
+
+        /* oranje */
+        .seg-spinner {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        /* paars */
+        .seg-weaver {
+            background: #06b6d4;
+            color: white;
+        }
+
+        /* cyaan/teal */
+        .seg-factory {
+            background: #10b981;
+            color: white;
+        }
+
+        /* groen */
+
+        .revenue-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 12px;
+            align-items: center;
+        }
+
+        .legend-item {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 13px;
+            color: #475569;
+        }
+
+        .legend-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        @media (max-width:720px) {
+            .segment {
+                font-size: 12px;
+                padding: 0 4px;
+            }
+
+            .revenue-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+            }
+        }
+    </style>
+</body>
+
+</html>
