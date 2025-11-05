@@ -6,7 +6,8 @@ const TEST_ACCOUNTS = [
     { address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", key: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", role: "Boer", type: "farmer" },
     { address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a", role: "Transporteur", type: "transporter" },
     { address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906", key: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6", role: "Certificeerder", type: "certifier" },
-    { address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", role: "Fabriek", type: "factory" }
+    { address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", key: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba", role: "Transport", type: "transport" },
+    { address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", role: "Inkoop Coöperatie", type: "factory" }
 ];
 
 const CONTRACTS = {
@@ -37,6 +38,8 @@ const DPP_ABI = [
     "function getBatchPayments(uint256) view returns (tuple(address from, address to, uint256 amount, uint256 batchId, string reason, uint256 timestamp)[])",
     "function hasDID(address) view returns (bool)",
     "function dids(address) view returns (string identifier, string publicKey, string didType, uint256 registered, bool active)",
+    "function getSubjectVCs(address subject) view returns (uint256[])",
+    "function getCredential(uint256 vcId) view returns (uint256 id, address issuer, address subject, string credentialType, string data, uint256 issuedAt, uint256 expiresAt, bool revoked)",
     "event DIDRegistered(address indexed controller, string identifier, string didType)",
     "event VCIssued(uint256 indexed vcId, address indexed issuer, address indexed subject, string credentialType)",
     "event BatchCreated(uint256 indexed batchId, address indexed farmer, uint256 weight, uint256 quality)",
@@ -110,28 +113,20 @@ async function importCustomWallet() {
 }
 
 function selectRole(roleType, accountIndex) {
+    // For async operations in custom role, use wrapper
+    if (roleType === 'custom') {
+        selectCustomRole();
+        return;
+    }
+    
     // Hide all dashboards
     document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('active'));
     document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
     
-    // For custom wallet, use the last imported one
-    let account;
-    if (roleType === 'custom') {
-        const customAccounts = TEST_ACCOUNTS.filter(a => a.type === 'custom');
-        if (customAccounts.length === 0) {
-            alert('⚠️ Geen custom wallet geïmporteerd! Import eerst een wallet met je private key.');
-            return;
-        }
-        account = customAccounts[customAccounts.length - 1]; // Use last imported
-        
-        // Show farmer dashboard for custom wallets (they need to create batches)
-        document.getElementById('dashboard-farmer').classList.add('active');
-    } else {
-        account = TEST_ACCOUNTS[accountIndex];
-        // Show selected dashboard
-        document.getElementById(`dashboard-${roleType}`).classList.add('active');
-    }
+    const account = TEST_ACCOUNTS[accountIndex];
     
+    // Show selected dashboard
+    document.getElementById(`dashboard-${roleType}`).classList.add('active');
     event.currentTarget.classList.add('active');
     
     // Set account
@@ -149,7 +144,88 @@ function selectRole(roleType, accountIndex) {
     updateBalances();
     updateDIDStatus();
     
+    // Auto-load farmer data
+    if (roleType === 'farmer') {
+        farmerLoadVCs();
+    }
+    
     console.log(`✅ Switched to ${account.role}`);
+}
+
+async function selectCustomRole() {
+    // Hide all dashboards
+    document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
+    
+    const customAccounts = TEST_ACCOUNTS.filter(a => a.type === 'custom');
+    if (customAccounts.length === 0) {
+        alert('⚠️ Geen custom wallet geïmporteerd! Import eerst een wallet met je private key.');
+        return;
+    }
+    
+    const account = customAccounts[customAccounts.length - 1]; // Use last imported
+    
+    // Activate the custom role card
+    const customCard = document.querySelector('[onclick*="custom"]');
+    if (customCard) customCard.classList.add('active');
+    
+    let actualRoleType = 'farmer';
+    let roleDisplayName = 'Custom (farmer)';
+    
+    try {
+        // Get actual DID type from blockchain
+        const tempProvider = new ethers.JsonRpcProvider(RPC_URL);
+        const tempDpp = new ethers.Contract(CONTRACTS.IntegratedCottonDPP, DPP_ABI, tempProvider);
+        const didInfo = await tempDpp.dids(account.address);
+        
+        console.log('📋 DID Info from blockchain:', didInfo);
+        
+        // Map DID type to dashboard type and display name
+        const typeMapping = {
+            'farmer': { dashboard: 'farmer', name: 'Boer' },
+            'transporter': { dashboard: 'transporter', name: 'Transporteur' },
+            'certifier': { dashboard: 'certifier', name: 'Certificeerder' },
+            'factory': { dashboard: 'factory', name: 'Inkoop Coöperatie' }
+        };
+        
+        const mapping = typeMapping[didInfo.didType] || typeMapping['farmer'];
+        actualRoleType = mapping.dashboard;
+        roleDisplayName = `Custom (${mapping.name})`;
+        currentRole = actualRoleType;
+        
+        console.log(`✅ Custom role detected: ${didInfo.didType} -> dashboard: ${actualRoleType} -> display: ${roleDisplayName}`);
+        
+        // Show appropriate dashboard based on DID type
+        document.getElementById(`dashboard-${actualRoleType}`).classList.add('active');
+        
+    } catch (error) {
+        console.warn('Could not fetch DID type, defaulting to farmer:', error);
+        currentRole = 'farmer';
+        actualRoleType = 'farmer';
+        roleDisplayName = 'Custom (Boer)';
+        document.getElementById('dashboard-farmer').classList.add('active');
+    }
+    
+    // Set account
+    signer = new ethers.Wallet(account.key, provider);
+    currentAccount = account.address;
+    
+    // Initialize contracts
+    usdt = new ethers.Contract(CONTRACTS.USDT, USDT_ABI, signer);
+    dpp = new ethers.Contract(CONTRACTS.IntegratedCottonDPP, DPP_ABI, signer);
+    
+    // Update display with correct role name
+    document.getElementById('currentAccount').innerHTML = `${currentAccount.substring(0,10)}...${currentAccount.substring(38)}<br><small>${roleDisplayName}</small>`;
+    
+    await updateBalances();
+    await updateDIDStatus();
+    
+    // Auto-load farmer data if custom wallet is a farmer
+    if (actualRoleType === 'farmer') {
+        farmerLoadVCs();
+    }
+    
+    console.log(`✅ Switched to custom wallet (${currentRole})`);
 }
 
 async function updateBalances() {
@@ -343,6 +419,110 @@ async function farmerLoadBatches() {
     } catch (error) {
         console.error("❌ Load batches error:", error);
         showError(result, "Fout bij laden");
+    }
+}
+
+async function farmerLoadVCs() {
+    const result = document.getElementById('farmer-vcs');
+    
+    // Check if contracts are initialized
+    if (!dpp || !currentAccount) {
+        result.innerHTML = '<div class="alert alert-warning">⚠️ Selecteer eerst een wallet om VCs te laden.</div>';
+        return;
+    }
+    
+    result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    try {
+        console.log('🔍 Fetching VCs for account:', currentAccount);
+        console.log('🔗 DPP Contract:', CONTRACTS.IntegratedCottonDPP);
+        
+        // Get all VC IDs for this farmer
+        const vcIds = await dpp.getSubjectVCs(currentAccount);
+        console.log('📋 VC IDs found:', vcIds);
+        console.log('📊 Total VCs:', vcIds.length);
+        
+        if (vcIds.length === 0) {
+            result.innerHTML = '<div class="alert alert-info">💡 U heeft nog geen Verifiable Credentials. Een certificeerder kan deze aan u toewijzen.</div>';
+            return;
+        }
+        
+        let html = `<div style="margin-bottom: 1rem;"><strong>Totaal VCs: ${vcIds.length}</strong></div>`;
+        
+        // Load details for each VC
+        for (const vcId of vcIds) {
+            const vc = await dpp.getCredential(vcId);
+            
+            const issuedDate = new Date(Number(vc.issuedAt) * 1000).toLocaleDateString('nl-NL');
+            
+            // Parse data JSON to get real expiry date
+            let realExpiryDate = null;
+            let isExpired = false;
+            let expiresDate = '';
+            
+            try {
+                const dataObj = JSON.parse(vc.data);
+                if (dataObj.geldigTot) {
+                    realExpiryDate = new Date(dataObj.geldigTot);
+                    expiresDate = realExpiryDate.toLocaleDateString('nl-NL');
+                    isExpired = Date.now() > realExpiryDate.getTime();
+                } else {
+                    // Fallback to blockchain expiry if geldigTot not in data
+                    expiresDate = new Date(Number(vc.expiresAt) * 1000).toLocaleDateString('nl-NL');
+                    isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                }
+            } catch (e) {
+                // If parsing fails, use blockchain expiry
+                expiresDate = new Date(Number(vc.expiresAt) * 1000).toLocaleDateString('nl-NL');
+                isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+            }
+            
+            const isRevoked = vc.revoked;
+            
+            let statusBadge = '';
+            if (isRevoked) {
+                statusBadge = '<span class="status-badge" style="background: #ef4444;">❌ Ingetrokken</span>';
+            } else if (isExpired) {
+                statusBadge = '<span class="status-badge" style="background: #f97316;">⏰ Verlopen</span>';
+            } else {
+                statusBadge = '<span class="status-badge status-verified">✅ Geldig</span>';
+            }
+            
+            // Parse data JSON for display
+            let dataDisplay = vc.data;
+            try {
+                const dataObj = JSON.parse(vc.data);
+                dataDisplay = Object.entries(dataObj)
+                    .map(([key, value]) => `<div style="margin: 4px 0;"><strong>${key}:</strong> ${value}</div>`)
+                    .join('');
+            } catch (e) {
+                // Keep as plain text if not JSON
+            }
+            
+            html += `
+                <div class="batch-item" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #0ea5e9;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <strong style="font-size: 16px;">🎓 VC #${vcId}</strong>
+                        ${statusBadge}
+                    </div>
+                    <div style="margin: 8px 0;">
+                        <strong>Type:</strong> ${vc.credentialType}<br>
+                        <strong>Uitgever:</strong> <span style="font-family: monospace; font-size: 12px;">${vc.issuer}</span><br>
+                        <strong>Uitgegeven:</strong> ${issuedDate}<br>
+                        <strong>Geldig tot:</strong> ${expiresDate}
+                    </div>
+                    <div style="background: white; padding: 10px; border-radius: 6px; margin-top: 8px;">
+                        <strong>📄 Details:</strong><br>
+                        ${dataDisplay}
+                    </div>
+                </div>
+            `;
+        }
+        
+        result.innerHTML = html;
+    } catch (error) {
+        console.error("❌ Load VCs error:", error);
+        showError(result, error.message || "Fout bij laden VCs");
     }
 }
 

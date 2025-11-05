@@ -1,0 +1,1343 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biologische Katoen Certificaat Uitgifte</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script>
+        // Check of ethers correct is geladen
+        window.addEventListener('load', function() {
+            if (typeof ethers === 'undefined') {
+                alert('Blockchain verbinding niet correct geladen. Probeer de pagina te verversen.');
+            } else {
+                console.log('Blockchain verbinding succesvol geladen:', ethers.version);
+            }
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .progress-bar {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+        
+        .steps::before {
+            content: '';
+            position: absolute;
+            top: 30px;
+            left: 10%;
+            right: 10%;
+            height: 4px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .step-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #e0e0e0;
+            color: #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .step-circle.active {
+            background: #10b981;
+            color: white;
+            box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+        }
+        
+        .step-label {
+            font-size: 11px;
+            color: #999;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        .step-label.active {
+            color: #10b981;
+            font-weight: 600;
+        }
+        
+        .content-box {
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        
+        h2 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 28px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            color: #555;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: border-color 0.3s ease;
+            font-family: inherit;
+        }
+        
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+        
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #10b981;
+        }
+        
+        button {
+            width: 100%;
+            padding: 15px;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #059669;
+        }
+        
+        button.secondary {
+            background: #6b7280;
+        }
+        
+        button.secondary:hover {
+            background: #4b5563;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #10b981;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .info-box {
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .info-box.success {
+            background: #d1fae5;
+            border: 2px solid #10b981;
+            color: #065f46;
+        }
+        
+        .info-box.info {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+            color: #1e40af;
+        }
+        
+        .info-box.warning {
+            background: #fef3c7;
+            border: 2px solid #f59e0b;
+            color: #92400e;
+        }
+        
+        .data-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+        
+        .big-icon {
+            font-size: 80px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .bounce {
+            animation: bounce 2s infinite;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-20px); }
+            60% { transform: translateY(-10px); }
+        }
+        
+        details {
+            margin-top: 10px;
+            cursor: pointer;
+        }
+        
+        summary {
+            font-weight: 600;
+            padding: 10px;
+            background: #f3f4f6;
+            border-radius: 4px;
+        }
+        
+        pre {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin-top: 10px;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .certificate-preview {
+            border: 3px solid #10b981;
+            border-radius: 12px;
+            padding: 30px;
+            background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+            margin: 20px 0;
+            position: relative;
+        }
+        
+        .certificate-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .certificate-title {
+            font-size: 28px;
+            color: #065f46;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .certificate-subtitle {
+            color: #047857;
+            font-size: 16px;
+        }
+        
+        .certificate-body {
+            margin: 20px 0;
+        }
+        
+        .certificate-field {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: white;
+            border-radius: 6px;
+        }
+        
+        .certificate-field strong {
+            color: #047857;
+        }
+        
+        .certificate-seal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 80px;
+            height: 80px;
+            background: #10b981;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 40px;
+            border: 4px solid #065f46;
+        }
+        
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .steps {
+                flex-wrap: wrap;
+            }
+            
+            .step {
+                flex-basis: 33%;
+                margin-bottom: 20px;
+            }
+            
+            .step-circle {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            .certificate-seal {
+                width: 60px;
+                height: 60px;
+                font-size: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌿 Biologische Katoen VC Uitgifte</h1>
+        <!-- VC Viewer / Zoekfunctie -->
+        <div class="content-box" style="margin-bottom:20px;">
+            <h2>🔎 Certificaten Zoeken</h2>
+            <div class="form-group">
+                <label>Zoek op Blockchain Adres of Certificaat ID</label>
+                <input type="text" id="vc-search-input" placeholder="0x... of certificaat nummer">
+                <small style="color: #666; display: block; margin-top: 4px;">Voer een Ethereum adres (0x...) of certificaatnummer (1, 2, 3, etc.) in</small>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button onclick="combinedSearch()">Zoeken</button>
+                <button class="secondary" onclick="renderIssuedVCs()">Alle Certificaten</button>
+                <button class="secondary" onclick="exportIssuedVCs()">Exporteer (JSON)</button>
+            </div>
+
+            <div id="vc-results" style="margin-top:15px;"></div>
+        </div>
+        
+        <div class="progress-bar">
+            <div class="steps">
+                <div class="step">
+                    <div class="step-circle" id="step1-circle">1</div>
+                    <div class="step-label" id="step1-label">Certificaat Aanvraag</div>
+                </div>
+                <div class="step">
+                    <div class="step-circle" id="step2-circle">2</div>
+                    <div class="step-label" id="step2-label">Validatie</div>
+                </div>
+                <div class="step">
+                    <div class="step-circle" id="step3-circle">3</div>
+                    <div class="step-label" id="step3-label">Certificaat Creatie</div>
+                </div>
+                <div class="step">
+                    <div class="step-circle" id="step4-circle">4</div>
+                    <div class="step-label" id="step4-label">Blockchain Registratie</div>
+                </div>
+                <div class="step">
+                    <div class="step-circle" id="step5-circle">5</div>
+                    <div class="step-label" id="step5-label">Transactie Bevestiging</div>
+                </div>
+                <div class="step">
+                    <div class="step-circle" id="step6-circle">6</div>
+                    <div class="step-label" id="step6-label">Voltooien</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Certificeerder Login -->
+        <div class="content-box" id="certifier-login-box" style="margin-bottom: 20px; background: #fef3c7; border: 2px solid #f59e0b;">
+            <h2 style="margin-bottom: 15px;">🔐 Certificeerder Login</h2>
+            <div class="info-box warning">
+                <strong>⚠️ Alleen certificeerders kunnen VCs uitgeven</strong><br>
+                Selecteer hieronder je certificeerder wallet om in te loggen.
+            </div>
+            <div class="form-group">
+                <label>Selecteer Certificeerder Wallet</label>
+                <select id="certifier-wallet-select">
+                    <option value="">-- Selecteer Wallet --</option>
+                    <option value="0x90F79bf6EB2c4f870365E785982E1f101E93b906">Account #3 - Certificeerder (Default)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Of voer Private Key in</label>
+                <input type="password" id="certifier-private-key" placeholder="0x...">
+                <small style="color: #666; display: block; margin-top: 4px;">Voor custom certificeerder wallets met CERTIFIER_ROLE</small>
+            </div>
+            <button onclick="loginAsCertifier()" style="background: #f59e0b;">🔓 Inloggen als Certificeerder</button>
+            <div id="certifier-status" style="margin-top: 15px;"></div>
+        </div>
+        
+        <div class="content-box">
+            <!-- Step 1: Certificaat Aanvraag -->
+            <div id="content-step1">
+                <h2>Certificaat Aanvraag Indienen</h2>
+                <div class="info-box info">
+                    <strong>ℹ️ Certificering Biologische Katoen</strong><br>
+                    Dit formulier wordt gebruikt voor het uitgeven van een blockchain-gebaseerd certificaat voor biologische katoenteelt.
+                    Het certificaat wordt direct op de blockchain geregistreerd en is daarmee direct verifieerbaar.
+                </div>
+                
+                <div class="form-group">
+                    <label>Selecteer Boer (of voer adres in)</label>
+                    <select id="boer-select" onchange="fillBoerAddress()">
+                        <option value="">-- Selecteer Boer --</option>
+                        <option value="0x70997970C51812dc3A010C7d01b50e0d17dc79C8">Account #1 - Boer (Default)</option>
+                        <option value="custom">Ander adres invoeren...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Blockchain Adres Boer</label>
+                    <input type="text" id="boer-did" placeholder="0x..." pattern="^0x[a-fA-F0-9]{40}$">
+                    <small style="color: #666; display: block; margin-top: 4px;">Het Ethereum adres van de boer (beginnend met 0x)</small>
+                </div>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Perceel Nummer</label>
+                        <input type="text" id="perceel" placeholder="BK-2025-001">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Oppervlakte (hectare)</label>
+                        <input type="number" id="oppervlakte" placeholder="5.5" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Certificeringsnorm</label>
+                        <select id="norm">
+                            <option value="">Selecteer norm...</option>
+                            <option value="GOTS">GOTS (Global Organic Textile Standard)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Geldig Tot Datum</label>
+                        <input type="date" id="geldig-tot">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Locatie</label>
+                    <input type="text" id="locatie" placeholder="Velp, Gelderland, Nederland">
+                </div>
+                
+                <div class="form-group">
+                    <label>Aanvullende Informatie</label>
+                    <textarea id="aanvullend" placeholder="Bijzonderheden of aanvullende certificeringen..."></textarea>
+                </div>
+                
+                <button onclick="startCertification()">Certificaat Aanvragen →</button>
+            </div>
+            
+            <!-- Step 2: Validatie -->
+            <div id="content-step2" class="hidden">
+                <h2>Off-Chain Validatie door Certificeerder</h2>
+                <div class="info-box warning">
+                    <strong>⚠️ Handmatige Controle Vereist</strong><br>
+                    De certificeerder moet de aanvraag off-chain controleren voordat het VC wordt uitgegeven.
+                </div>
+                
+                <div class="certificate-preview" style="margin-bottom: 20px;">
+                    <div class="certificate-header">
+                        <div class="certificate-title" style="font-size: 20px;">Aanvraag Overzicht</div>
+                    </div>
+                    <div class="certificate-body">
+                        <div class="certificate-field">
+                            <strong>Boer DID:</strong> <span id="review-did" style="font-size: 11px; word-break: break-all;"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Perceel:</strong> <span id="review-perceel"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Oppervlakte:</strong> <span id="review-oppervlakte"></span> hectare
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Norm:</strong> <span id="review-norm"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Locatie:</strong> <span id="review-locatie"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Geldig tot:</strong> <span id="review-geldig"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-bottom: 15px; color: #333;">Validatie Checklist:</h3>
+                <div style="background: #f9fafb; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-identity" style="width: auto; margin-right: 10px;">
+                            <span>Identiteit boer geverifieerd via blockchain adres</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-location" style="width: auto; margin-right: 10px;">
+                            <span>Locatie/perceel fysiek geïnspecteerd</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-organic" style="width: auto; margin-right: 10px;">
+                            <span>Biologische teeltmethoden gecontroleerd</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-standards" style="width: auto; margin-right: 10px;">
+                            <span>Voldoet aan gekozen certificeringsnorm</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-documents" style="width: auto; margin-right: 10px;">
+                            <span>Alle benodigde documenten aangeleverd</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Opmerkingen Certificeerder (optioneel)</label>
+                    <textarea id="certificeerder-opmerkingen" placeholder="Voeg eventuele opmerkingen of aandachtspunten toe..."></textarea>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px;">
+                    <button class="secondary" onclick="rejectApplication()">❌ Afwijzen</button>
+                    <button onclick="approveApplication()">✅ Goedkeuren</button>
+                </div>
+            </div>
+            
+            <!-- Step 3: Certificaat Creatie -->
+            <div id="content-step3" class="hidden">
+                <h2>Certificaat Aanmaken</h2>
+                <div class="info-box success">
+                    <strong>✅ Validatie succesvol!</strong><br>
+                    De aanvraag is goedgekeurd en wordt nu op de blockchain geregistreerd.
+                </div>
+                <div class="loading">
+                    <div class="big-icon">📜</div>
+                    <p style="color: #666;">Het certificaat wordt aangemaakt en op de blockchain geregistreerd...</p>
+                </div>
+            </div>
+            
+            <!-- Step 4: Blockchain Verificatie -->
+            <div id="content-step4" class="hidden">
+                <h2>Blockchain Registratie</h2>
+                <div class="info-box info">
+                    <strong>📄 Certificaat gereed!</strong>
+                    <details>
+                        <summary>Bekijk Certificaat Details</summary>
+                        <pre id="vc-document-json"></pre>
+                    </details>
+                </div>
+                <div class="loading">
+                    <div class="big-icon bounce">✍️</div>
+                    <p style="color: #666;">De transactie wordt verwerkt op de blockchain...</p>
+                </div>
+            </div>
+            
+            <!-- Step 5: Bevestiging -->
+            <div id="content-step5" class="hidden">
+                <h2>Transactie Bevestiging</h2>
+                <div class="info-box success">
+                    <strong>✅ Certificaat Geregistreerd!</strong><br>
+                    <div class="data-display">
+                        <p><strong>Transactie Hash:</strong> <span id="display-signature"></span></p>
+                        <p><strong>Status:</strong> Bevestigd op blockchain</p>
+                    </div>
+                </div>
+                <div class="loading">
+                    <div class="big-icon">💾</div>
+                    <p style="color: #666;">Het ondertekende VC wordt opgeslagen in uw SSI Wallet...</p>
+                </div>
+            </div>
+            
+            <!-- Step 6: Bevestiging -->
+            <div id="content-step6" class="hidden">
+                <div style="text-align: center;">
+                    <div class="big-icon">🎉</div>
+                    <h2 style="color: #10b981; margin-bottom: 30px;">Certificaat Succesvol Uitgegeven!</h2>
+                </div>
+                
+                <div class="certificate-preview">
+                    <div class="certificate-seal">✓</div>
+                    <div class="certificate-header">
+                        <div class="certificate-title">Biologische Katoen Certificaat</div>
+                        <div class="certificate-subtitle">Verifiable Credential</div>
+                    </div>
+                    <div class="certificate-body">
+                        <div class="certificate-field">
+                            <strong>Perceel:</strong> <span id="cert-perceel"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Oppervlakte:</strong> <span id="cert-oppervlakte"></span> hectare
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Certificeringsnorm:</strong> <span id="cert-norm"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Geldig tot:</strong> <span id="cert-geldig"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Locatie:</strong> <span id="cert-locatie"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="info-box success">
+                    <h3 style="margin-bottom: 20px;">VC Details:</h3>
+                    <div style="margin-bottom: 15px;">
+                        <strong>VC ID:</strong><br>
+                        <div class="data-display" id="final-vc-id"></div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <strong>Uitgever (Issuer):</strong><br>
+                        <div class="data-display" id="final-issuer"></div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <strong>Houder DID:</strong><br>
+                        <div class="data-display" id="final-holder"></div>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <strong>Status:</strong><br>
+                        <span style="color: #10b981; font-weight: 600;">✅ Opgeslagen in SSI Wallet</span>
+                    </div>
+                    <details>
+                        <summary>Volledig VC Document bekijken</summary>
+                        <pre id="final-vc-json"></pre>
+                    </details>
+                </div>
+                
+                <div class="info-box info">
+                    <strong>💡 Dit certificaat kan nu worden:</strong><br>
+                    • Gedeeld met afnemers en kopers<br>
+                    • Geverifieerd door derden<br>
+                    • Gebruikt in de toeleveringsketen<br>
+                    • Herroepen indien nodig door de uitgever
+                </div>
+                
+                <button onclick="resetForm()">Nieuw Certificaat Aanvragen</button>
+                <button class="secondary" onclick="downloadVC()">Download VC (JSON)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    let currentStep = 1;
+    let formData = {};
+    let vcData = {};
+    // storage for issued VCs
+    let issuedVCs = JSON.parse(localStorage.getItem('issuedVCs') || '[]');
+    
+    // Blockchain integration
+    let provider = null;
+    let signer = null;
+    let contract = null;
+    
+    // Wallet mappings
+    const CERTIFIER_WALLETS = {
+        '0x90F79bf6EB2c4f870365E785982E1f101E93b906': '0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6'
+    };
+    
+    const FARMER_WALLETS = {
+        '0x70997970C51812dc3A010C7d01b50e0d17dc79C8': '0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d'
+    };
+    
+    async function loginAsCertifier() {
+        const selectedWallet = document.getElementById('certifier-wallet-select').value;
+        const customKey = document.getElementById('certifier-private-key').value.trim();
+        const statusDiv = document.getElementById('certifier-status');
+        
+        let privateKey = null;
+        
+        if (customKey) {
+            privateKey = customKey;
+        } else if (selectedWallet && CERTIFIER_WALLETS[selectedWallet]) {
+            privateKey = CERTIFIER_WALLETS[selectedWallet];
+        } else {
+            statusDiv.innerHTML = '<div class="info-box warning">Selecteer een wallet of voer een private key in</div>';
+            return;
+        }
+        
+        try {
+            statusDiv.innerHTML = '<div class="loading">Inloggen...</div>';
+            
+            // Test connection
+            provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+            signer = new ethers.Wallet(privateKey, provider);
+            const address = await signer.getAddress();
+            
+            // Store for later use
+            localStorage.setItem('certifier_private_key', privateKey);
+            localStorage.setItem('certifier_address', address);
+            
+            statusDiv.innerHTML = `<div class="info-box success">✅ Ingelogd als: ${address}</div>`;
+            
+            // Hide login box
+            document.getElementById('certifier-login-box').style.display = 'none';
+            
+        } catch (error) {
+            console.error('Login fout:', error);
+            statusDiv.innerHTML = `<div class="info-box warning">❌ Fout: ${error.message}</div>`;
+        }
+    }
+    
+    function fillBoerAddress() {
+        const select = document.getElementById('boer-select');
+        const input = document.getElementById('boer-did');
+        
+        if (select.value === 'custom') {
+            input.value = '';
+            input.focus();
+        } else if (select.value) {
+            input.value = select.value;
+        }
+    }
+    
+    const CONTRACT_ABI = [
+        "function issueCredential(address subject, string memory credentialType, string memory data, uint256 validityDays) external",
+        "function hasRole(bytes32 role, address account) external view returns (bool)",
+        "function dids(address) external view returns (string identifier, string publicKey, string didType, uint256 registered, bool active)",
+        "event VCIssued(uint256 indexed vcId, address indexed issuer, address indexed subject, string credentialType)"
+    ];
+    
+        async function connectWallet() {
+            try {
+                // Direct connect to local Hardhat node
+                provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+                
+                // Get certificeerder private key from localStorage (set in stakeholder dashboard)
+                const certPrivateKey = localStorage.getItem('certifier_private_key');
+                if (!certPrivateKey) {
+                    alert('Geen certificeerder wallet gevonden. Log eerst in als certificeerder in het stakeholder dashboard.');
+                    return false;
+                }
+                
+                signer = new ethers.Wallet(certPrivateKey, provider);
+                
+                // Use IntegratedCottonDPP contract
+                const contractAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+                
+                contract = new ethers.Contract(contractAddress, CONTRACT_ABI, signer);
+                
+                const address = await signer.getAddress();
+                console.log('Certificeerder wallet verbonden:', address);
+                
+                // Verify this wallet has CERTIFIER_ROLE
+                const hasCertifierRole = await contract.hasRole(
+                    ethers.utils.id('CERTIFIER_ROLE'),
+                    address
+                );
+                
+                if (!hasCertifierRole) {
+                    alert('Deze wallet heeft geen CERTIFIER rol. Log in met een certificeerder account.');
+                    return false;
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Wallet connectie fout:', error);
+                alert('Fout bij verbinden met blockchain: ' + error.message);
+                return false;
+            }
+        }
+
+        function updateProgress(step) {
+            currentStep = step;
+            for (let i = 1; i <= 6; i++) {
+                const circle = document.getElementById(`step${i}-circle`);
+                const label = document.getElementById(`step${i}-label`);
+                
+                if (i <= step) {
+                    circle.classList.add('active');
+                    label.classList.add('active');
+                } else {
+                    circle.classList.remove('active');
+                    label.classList.remove('active');
+                }
+            }
+        }
+
+        function showStep(step) {
+            for (let i = 1; i <= 6; i++) {
+                const content = document.getElementById(`content-step${i}`);
+                if (content) {
+                    content.classList.add('hidden');
+                }
+            }
+            const currentContent = document.getElementById(`content-step${step}`);
+            if (currentContent) {
+                currentContent.classList.remove('hidden');
+            }
+            updateProgress(step);
+        }
+
+        function startCertification() {
+            formData = {
+                boerDID: document.getElementById('boer-did').value,
+                perceel: document.getElementById('perceel').value,
+                oppervlakte: document.getElementById('oppervlakte').value,
+                norm: document.getElementById('norm').value,
+                geldigTot: document.getElementById('geldig-tot').value,
+                locatie: document.getElementById('locatie').value,
+                aanvullend: document.getElementById('aanvullend').value
+            };
+
+            if (!formData.boerDID || !formData.perceel || 
+                !formData.oppervlakte || !formData.norm || !formData.geldigTot || !formData.locatie) {
+                alert('Vul alle verplichte velden in!');
+                return;
+            }
+
+            // Fill review form
+            document.getElementById('review-did').textContent = formData.boerDID;
+            document.getElementById('review-perceel').textContent = formData.perceel;
+            document.getElementById('review-oppervlakte').textContent = formData.oppervlakte;
+            document.getElementById('review-norm').textContent = formData.norm;
+            document.getElementById('review-locatie').textContent = formData.locatie;
+            document.getElementById('review-geldig').textContent = new Date(formData.geldigTot).toLocaleDateString('nl-NL');
+
+            showStep(2);
+        }
+
+        function approveApplication() {
+            // Check if all checkboxes are checked
+            const checks = [
+                document.getElementById('check-identity').checked,
+                document.getElementById('check-location').checked,
+                document.getElementById('check-organic').checked,
+                document.getElementById('check-standards').checked,
+                document.getElementById('check-documents').checked
+            ];
+
+            if (!checks.every(c => c)) {
+                alert('Vink alle validatiepunten aan voordat u de aanvraag goedkeurt.');
+                return;
+            }
+
+            formData.certificeerderOpmerkingen = document.getElementById('certificeerder-opmerkingen').value;
+            formData.validatieStatus = 'Goedgekeurd';
+            formData.validatieDatum = new Date().toISOString();
+
+            showStep(3);
+            setTimeout(createVCOnBlockchain, 1500);
+        }
+
+        function rejectApplication() {
+            const reason = prompt('Reden voor afwijzing:');
+            if (reason) {
+                alert('Aanvraag is afgewezen. Reden: ' + reason);
+                resetForm();
+            }
+        }
+
+        function validateData() {
+            showStep(3);
+            setTimeout(createVCOnBlockchain, 1500);
+        }
+
+        async function createVCOnBlockchain() {
+            // First ensure wallet is connected
+            const connected = await connectWallet();
+            if (!connected) {
+                                    alert('Kan niet verbinden met blockchain node. Procedure wordt afgebroken.');
+                resetForm();
+                return;
+            }
+            
+            try {
+                // Verify subject has farmer DID
+                const subjectAddress = formData.boerDID;
+                const didInfo = await contract.dids(subjectAddress);
+                
+                if (!didInfo.active) {
+                    throw new Error('Boer heeft geen actief DID. Registreer eerst een DID.');
+                }
+                
+                if (didInfo.didType !== 'farmer') {
+                    throw new Error(`Alleen boeren kunnen dit certificaat ontvangen. Gevonden type: ${didInfo.didType}`);
+                }
+                
+                console.log('✅ Boer DID geverifieerd:', didInfo.identifier);
+                
+                // Prepare VC data as JSON string
+                const vcDataString = JSON.stringify({
+                    perceel: formData.perceel,
+                    oppervlakte: formData.oppervlakte,
+                    norm: formData.norm,
+                    locatie: formData.locatie,
+                    geldigTot: formData.geldigTot,
+                    aanvullend: formData.aanvullend,
+                    validatieDatum: formData.validatieDatum,
+                    certificeerderOpmerkingen: formData.certificeerderOpmerkingen
+                });
+                
+                // Calculate validity days
+                const geldigTotDate = new Date(formData.geldigTot);
+                const now = new Date();
+                const validityDays = Math.ceil((geldigTotDate - now) / (1000 * 60 * 60 * 24));
+                
+                // Allow past dates - set minimum of 1 day for blockchain storage
+                const finalValidityDays = validityDays <= 0 ? 1 : validityDays;
+                
+                if (validityDays <= 0) {
+                    console.warn(`⚠️ Geldigheidsdatum ligt in het verleden (${validityDays} dagen geleden). VC wordt opgeslagen met 1 dag geldigheid.`);
+                } else {
+                    console.log(`✅ Indienen VC op blockchain voor ${finalValidityDays} dagen...`);
+                }
+                
+                // Issue credential on blockchain with IntegratedCottonDPP format
+                const tx = await contract.issueCredential(
+                    subjectAddress,
+                    'OrganicCottonCertificate',
+                    vcDataString,
+                    finalValidityDays
+                );
+                console.log('Transactie verzonden:', tx.hash);
+                
+                // Wait for confirmation
+                const receipt = await tx.wait();
+                console.log('Transactie bevestigd:', receipt);
+                
+                // Get the issued credential ID from the transaction logs
+                const event = receipt.events?.find(e => e.event === 'VCIssued');
+                if (!event) {
+                    console.log('Beschikbare events:', receipt.events);
+                    throw new Error('Geen VCIssued event ontvangen van de blockchain transactie');
+                }
+                const credentialId = event.args?.vcId || event.args?.[0];
+                if (!credentialId) {
+                    throw new Error('Geen credential ID ontvangen in het event');
+                }
+                console.log('✅ Credential ID uit event:', credentialId.toString());
+                console.log('Volledig event:', event);
+                
+                vcData.blockchainId = credentialId.toString();
+                vcData.txHash = tx.hash;
+                vcData.issuerAddress = await signer.getAddress();
+                
+                // Store VC data locally
+                const vcDoc = {
+                    '@context': ['https://www.w3.org/2018/credentials/v1'],
+                    id: 'urn:blockchain:' + credentialId.toString(),
+                    type: ['VerifiableCredential', 'OrganicCottonCertificate'],
+                    issuer: vcData.issuerAddress,
+                    issuanceDate: new Date().toISOString(),
+                    expirationDate: formData.geldigTot + 'T23:59:59Z',
+                    credentialSubject: {
+                        id: formData.boerDID,
+                        certification: {
+                            type: 'OrganicCottonCertification',
+                            standard: formData.norm,
+                            parcelNumber: formData.perceel,
+                            area: { value: parseFloat(formData.oppervlakte), unit: 'hectare' },
+                            location: formData.locatie,
+                            additionalInfo: formData.aanvullend
+                        }
+                    },
+                    proof: {
+                        type: 'BlockchainProof',
+                        blockchainId: credentialId.toString(),
+                        transactionHash: tx.hash,
+                        blockNumber: receipt.blockNumber
+                    }
+                };
+                
+                vcData.vc = vcDoc;
+                
+                document.getElementById('vc-document-json').textContent = JSON.stringify(vcDoc, null, 2);
+                
+                setTimeout(() => {
+                    showStep(4);
+                    // Auto-proceed to next step since blockchain already signed
+                    setTimeout(() => {
+                        vcData.signature = tx.hash;
+                        document.getElementById('display-signature').textContent = tx.hash.substr(0, 30) + '...';
+                        showStep(5);
+                        setTimeout(saveToWallet, 2000);
+                    }, 1500);
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Fout bij aanmaken VC op blockchain:', error);
+                alert('Fout bij aanmaken VC op blockchain: ' + error.message);
+                resetForm();
+            }
+        }
+
+        function createVC() {
+            // Legacy off-chain method (kept for fallback)
+            const vcId = 'urn:uuid:' + generateUUID();
+            const issuerDID = 'did:eth:0x' + Math.random().toString(16).substr(2, 40);
+            const issuanceDate = new Date().toISOString();
+            
+            const vc = {
+                '@context': [
+                    'https://www.w3.org/2018/credentials/v1',
+                    'https://www.w3.org/2018/credentials/examples/v1'
+                ],
+                id: vcId,
+                type: ['VerifiableCredential', 'OrganicCottonCertificate'],
+                issuer: {
+                    id: issuerDID,
+                    name: 'Certificeringsinstantie Biologische Landbouw'
+                },
+                issuanceDate: issuanceDate,
+                expirationDate: formData.geldigTot + 'T23:59:59Z',
+                credentialSubject: {
+                    id: formData.boerDID,
+                    // naam en urn worden in een ander proces beheerd
+                        certification: {
+                        type: 'OrganicCottonCertification',
+                        standard: formData.norm,
+                        parcelNumber: formData.perceel,
+                        area: {
+                            value: parseFloat(formData.oppervlakte),
+                            unit: 'hectare'
+                        },
+                        location: formData.locatie,
+                        additionalInfo: formData.aanvullend
+                    }
+                }
+            };
+
+            vcData.vc = vc;
+            vcData.vcId = vcId;
+            vcData.issuerDID = issuerDID;
+
+            document.getElementById('vc-document-json').textContent = JSON.stringify(vc, null, 2);
+
+            setTimeout(() => showStep(4), 1500);
+        }
+
+        function signVC() {
+            const signature = '0x' + Math.random().toString(16).substr(2, 128);
+            const proofDate = new Date().toISOString();
+            
+            const proof = {
+                type: 'Ed25519Signature2020',
+                created: proofDate,
+                verificationMethod: vcData.issuerDID + '#key-1',
+                proofPurpose: 'assertionMethod',
+                proofValue: signature
+            };
+
+            vcData.vc.proof = proof;
+            vcData.signature = signature;
+
+            document.getElementById('display-signature').textContent = signature.substr(0, 30) + '...';
+
+            setTimeout(() => {
+                showStep(5);
+                setTimeout(saveToWallet, 2000);
+            }, 1500);
+        }
+
+        function saveToWallet() {
+            // Display final certificate
+            document.getElementById('cert-perceel').textContent = formData.perceel;
+            document.getElementById('cert-oppervlakte').textContent = formData.oppervlakte;
+            document.getElementById('cert-norm').textContent = formData.norm;
+            document.getElementById('cert-geldig').textContent = new Date(formData.geldigTot).toLocaleDateString('nl-NL');
+            document.getElementById('cert-locatie').textContent = formData.locatie;
+
+            document.getElementById('final-vc-id').textContent = vcData.vc.id + (vcData.blockchainId ? ' (Blockchain ID: ' + vcData.blockchainId + ')' : '');
+            document.getElementById('final-issuer').textContent = vcData.issuerAddress || vcData.vc.issuer.id || vcData.vc.issuer;
+            document.getElementById('final-holder').textContent = formData.boerDID;
+            document.getElementById('final-vc-json').textContent = JSON.stringify(vcData.vc, null, 2);
+
+            // Persist issued VC locally so it can be viewed/searched later
+            const saved = {
+                id: vcData.vc.id,
+                blockchainId: vcData.blockchainId || null,
+                txHash: vcData.txHash || null,
+                issuer: vcData.issuerAddress || vcData.vc.issuer.id || vcData.vc.issuer,
+                holder: formData.boerDID,
+                // urn niet meer onderdeel van dit formulier
+                batchNumber: formData.batchnummer || null,
+                issuedAt: new Date().toISOString(),
+                vc: vcData.vc
+            };
+            issuedVCs.push(saved);
+            localStorage.setItem('issuedVCs', JSON.stringify(issuedVCs));
+
+            showStep(6);
+        }
+
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
+        function downloadVC() {
+            const dataStr = JSON.stringify(vcData.vc, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            const fileName = `organic-cotton-vc-${formData.perceel}.json`;
+            link.download = fileName;
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function resetForm() {
+            formData = {};
+            vcData = {};
+            document.getElementById('boer-did').value = '';
+            document.getElementById('perceel').value = '';
+            document.getElementById('oppervlakte').value = '';
+            document.getElementById('norm').value = '';
+            document.getElementById('geldig-tot').value = '';
+            document.getElementById('locatie').value = '';
+            document.getElementById('aanvullend').value = '';
+            showStep(1);
+        }
+
+        // VC Viewer & Search functions
+        function renderIssuedVCs(list) {
+            const container = document.getElementById('vc-results');
+            const arr = list || issuedVCs;
+            if (!arr || arr.length === 0) {
+                container.innerHTML = '<div class="info-box info">Geen uitgegeven VCs gevonden.</div>';
+                return;
+            }
+            container.innerHTML = '';
+            arr.slice().reverse().forEach(v => {
+                const box = document.createElement('div');
+                box.className = 'certificate-preview';
+                box.style.background = 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)';
+                const blockchainInfo = v.blockchainId ? `<br><strong>Blockchain ID:</strong> ${v.blockchainId}<br><strong>TX Hash:</strong> ${v.txHash}` : '';
+                box.innerHTML = `
+                    <div class="certificate-header">
+                        <div class="certificate-title">VC ID: ${v.id}</div>
+                        <div class="certificate-subtitle">Houder: ${v.holder} ${v.urn?(' | URN: '+v.urn):''}${blockchainInfo}</div>
+                    </div>
+                    ${v.blockchainId ? `<button onclick="verifyOnBlockchain(${v.blockchainId})" style="margin:10px 0;">🔍 Verifieer op Blockchain</button>` : ''}
+                    <details>
+                        <summary>Bekijk VC (JSON)</summary>
+                        <pre>${JSON.stringify(v.vc, null, 2)}</pre>
+                    </details>
+                `;
+                container.appendChild(box);
+            });
+        }
+
+        async function verifyOnBlockchain(credentialId) {
+            const connected = await connectWallet();
+            if (!connected) return;
+            
+            try {
+                console.log('Verifiëren credential ID:', credentialId);
+                const result = await contract.verifyCredential(credentialId);
+                
+                const info = `
+                    <div class="info-box ${result.valid ? 'success' : 'warning'}">
+                        <h3>Blockchain Verificatie Resultaat</h3>
+                        <p><strong>Status:</strong> ${result.valid ? '✅ Geldig' : '❌ Ongeldig/Ingetrokken'}</p>
+                        <p><strong>Uitgever:</strong> ${result.issuer}</p>
+                        <p><strong>Houder:</strong> ${result.subject}</p>
+                        <p><strong>Data:</strong></p>
+                        <pre style="background: white; color: #333; padding: 10px; border-radius: 4px;">${JSON.stringify(JSON.parse(result.data), null, 2)}</pre>
+                    </div>
+                `;
+                
+                const container = document.getElementById('vc-results');
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = info;
+                container.insertBefore(tempDiv, container.firstChild);
+                
+                setTimeout(() => tempDiv.remove(), 15000); // Remove after 15 seconds
+                
+            } catch (error) {
+                console.error('Verificatie fout:', error);
+                alert('Fout bij verificatie op blockchain: ' + error.message);
+            }
+        }
+
+        async function combinedSearch() {
+            const searchValue = document.getElementById('vc-search-input').value.trim();
+            if (!searchValue) {
+                renderIssuedVCs();
+                return;
+            }
+
+            // Check of het een blockchain adres is (begint met 0x)
+            if (searchValue.startsWith('0x')) {
+                const results = issuedVCs.filter(v => {
+                    if (!v) return false;
+                    return v.holder && v.holder.toLowerCase() === searchValue.toLowerCase();
+                });
+                const container = document.getElementById('vc-results');
+                if (results.length === 0) {
+                    container.innerHTML = '<div class="info-box warning">Geen certificaten gevonden voor adres: ' + searchValue + '</div>';
+                    return;
+                }
+                renderIssuedVCs(results);
+            }
+            // Anders behandelen we het als een certificaat ID
+            else {
+                const id = parseInt(searchValue);
+                if (isNaN(id)) {
+                    alert('Voer een geldig blockchain adres (0x...) of certificaatnummer in');
+                    return;
+                }
+                await verifyOnBlockchain(id);
+            }
+        }
+
+        function exportIssuedVCs() {
+            const dataStr = JSON.stringify(issuedVCs, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'issued-vcs.json';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        // Set default date (1 year from now)
+        window.onload = function() {
+            const dateInput = document.getElementById('geldig-tot');
+            const today = new Date();
+            const nextYear = new Date(today.setFullYear(today.getFullYear() + 1));
+            dateInput.value = nextYear.toISOString().split('T')[0];
+            showStep(1);
+            
+            // Check if already logged in
+            const certAddress = localStorage.getItem('certifier_address');
+            if (certAddress) {
+                document.getElementById('certifier-status').innerHTML = 
+                    `<div class="info-box success">✅ Ingelogd als: ${certAddress}</div>`;
+                document.getElementById('certifier-login-box').style.display = 'none';
+            }
+            
+            // render any existing issued VCs in the viewer
+            renderIssuedVCs();
+        };
+    </script>
+
+    <!-- Hardhat helper: plak hier het contractadres na "npx hardhat run --network localhost scripts/deploy.js" -->
+    <script>
+    (function(){
+        const HELPERS = {
+            key: 'hardhat_contract_address',
+            set(addr){ localStorage.setItem(this.key, addr); alert('Contractadres opgeslagen in localStorage'); },
+            get(){ return localStorage.getItem(this.key) || ''; }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const panel = document.createElement('div');
+            panel.className = 'content-box';
+            panel.style.marginTop = '16px';
+            panel.innerHTML = `
+                <h2>🔗 Hardhat lokaal (blockchain)</h2>
+                <div class="form-group">
+                    <label>Contractadres (kopieer uit deploy output)</label>
+                    <input id="hh-contract-input" placeholder="0x..." value="" />
+                </div>
+                <div style="display:flex; gap:10px;">
+                    <button id="hh-save">Opslaan</button>
+                    <button id="hh-open-rpc" class="secondary">Open RPC status</button>
+                </div>
+                <p style="margin-top:10px; font-size:13px; color:#444;">Na deploy: plak adres en klik Opslaan. De frontend gebruikt dit adres voor directe blockchain interacties.</p>
+            `;
+
+            const container = document.querySelector('.container');
+            if (container) container.insertBefore(panel, container.firstChild.nextSibling);
+
+            const input = panel.querySelector('#hh-contract-input');
+            input.value = HELPERS.get();
+            panel.querySelector('#hh-save').onclick = () => {
+                const v = input.value.trim();
+                if (!v) return alert('Voer een geldig contractadres in');
+                HELPERS.set(v);
+            };
+            panel.querySelector('#hh-open-rpc').onclick = () => {
+                window.open('http://127.0.0.1:8545', '_blank');
+            };
+        });
+    })();
+    </script>
+</body>
+</html>

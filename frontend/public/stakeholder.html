@@ -129,9 +129,9 @@
                     <div class="role-name">Certificeerder</div>
                     <div class="role-desc">Kwaliteit Certificatie</div>
                 </div>
-                <div class="role-card" onclick="selectRole('factory', 4)">
+                <div class="role-card" onclick="selectRole('factory', 5)">
                     <div class="role-icon">🏭</div>
-                    <div class="role-name">Fabriek</div>
+                    <div class="role-name">Inkoop Coöperatie</div>
                     <div class="role-desc">Verwerking & Productie</div>
                 </div>
                 <div class="role-card" onclick="selectRole('custom', -1)">
@@ -185,7 +185,8 @@
                         <option value="1">Account #1 - Boer</option>
                         <option value="2">Account #2 - Transporteur</option>
                         <option value="3">Account #3 - Certificeerder</option>
-                        <option value="4">Account #4 - Fabriek</option>
+                        <option value="4">Account #4 - Transport (Alt)</option>
+                        <option value="5">Account #5 - Inkoop Coöperatie</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -256,6 +257,15 @@
                 <div id="farmer-batches"></div>
             </div>
 
+            <div class="card" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left: 4px solid #0ea5e9;">
+                <h2>🎓 Mijn Verifiable Credentials</h2>
+                <div class="alert alert-info">
+                    <strong>ℹ️ Info:</strong> Hier ziet u alle certificaten (VCs) die aan u zijn toegekend door certificeerders. Deze bewijzen de kwaliteit en certificering van uw katoen.
+                </div>
+                <button class="button" onclick="farmerLoadVCs()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">🔄 Ververs VCs</button>
+                <div id="farmer-vcs"></div>
+            </div>
+
             <div class="card">
                 <h2>3. USDT Faucet</h2>
                 <div class="alert alert-warning">
@@ -311,8 +321,16 @@
                 </div>
             </div>
 
+            <div class="card" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;">
+                <h2 style="color: white;">📜 Nieuwe VC Aanvraag Module</h2>
+                <p style="margin-bottom: 15px;">Gebruik de nieuwe module voor een gestroomlijnde VC uitgave met validatie workflow.</p>
+                <a href="vc-aanvraag.html" target="_blank" class="button" style="background: white; color: #059669; text-decoration: none; display: inline-block;">
+                    🚀 Open VC Aanvraag Module
+                </a>
+            </div>
+            
             <div class="card">
-                <h2>1. Verifiable Credential Uitgeven</h2>
+                <h2>1. Verifiable Credential Uitgeven (Legacy)</h2>
                 <div class="alert alert-info">
                     <strong>ℹ️ Info:</strong> Geef een credential uit aan een boer voor bio certificatie, kwaliteit of fairtrade.
                 </div>
@@ -346,7 +364,7 @@
         <!-- FACTORY DASHBOARD -->
         <div id="dashboard-factory" class="dashboard">
             <div class="card">
-                <h2>🏭 Fabriek Dashboard</h2>
+                <h2>🏭 Inkoop Coöperatie Dashboard</h2>
                 <div class="task-list">
                     <h3>📋 Uw Taken:</h3>
                     <div class="task-item">🔬 Kwaliteitscontrole uitvoeren bij ontvangst</div>

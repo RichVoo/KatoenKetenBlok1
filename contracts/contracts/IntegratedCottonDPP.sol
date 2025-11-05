@@ -89,6 +89,7 @@ contract IntegratedCottonDPP is AccessControl {
     mapping(uint256 => VerifiableCredential) public credentials;
     mapping(address => uint256[]) public farmerBatches;
     mapping(uint256 => Payment[]) public batchPayments;
+    mapping(address => uint256[]) public subjectCredentials; // Track VCs per subject
     
     // Events
     event DIDRegistered(address indexed controller, string identifier, string didType);
@@ -167,6 +168,9 @@ contract IntegratedCottonDPP is AccessControl {
             expiresAt: block.timestamp + (validityDays * 1 days),
             revoked: false
         });
+        
+        // Track VC for subject
+        subjectCredentials[subject].push(vcId);
         
         emit VCIssued(vcId, msg.sender, subject, credentialType);
     }
@@ -471,6 +475,13 @@ contract IntegratedCottonDPP is AccessControl {
             vc.expiresAt,
             vc.revoked
         );
+    }
+
+    /**
+     * @dev Haal alle VC IDs van een subject op
+     */
+    function getSubjectVCs(address subject) external view returns (uint256[] memory) {
+        return subjectCredentials[subject];
     }
 
     // ========== HELPER FUNCTIONS ==========

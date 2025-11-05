@@ -185,8 +185,10 @@ app.post('/api/register-on-chain', async (req, res) => {
 
         // 2) Call registerDID using nonce = baseNonce + 1. Add a small retry if nonce errors occur.
         const contract = new ethers.Contract(contractAddress, contractABI, adminWallet);
-        const didType = registration.role || 'farmer';
+        const didType = registration.didType || registration.role || 'farmer';
         const publicKey = registration.walletAddress;
+        
+        console.log('Registering DID with type:', didType, 'from registration:', registration.didType || registration.role);
 
         let attempt = 0;
         const maxAttempts = 3;
@@ -443,6 +445,7 @@ app.get('/api/registrations', async (req, res) => {
             naam: r.naam,
             bedrijfsnaam: r.bedrijfsnaam,
             role: r.role || 'farmer',
+            didType: r.didType || r.role || 'farmer',
             timestamp: r.timestamp,
             txHash: r.txHash,
             verified: r.verified
@@ -451,6 +454,40 @@ app.get('/api/registrations', async (req, res) => {
     } catch (e) {
         console.error('Error /api/registrations', e);
         res.status(500).json({ error: 'Failed to load registrations' });
+    }
+});
+
+// Get registration by wallet address
+app.get('/api/registration/:address', async (req, res) => {
+    try {
+        const address = req.params.address.toLowerCase();
+        const regs = await readJson(REG_FILE);
+        const registration = regs.find((r: any) => r.walletAddress.toLowerCase() === address);
+        
+        if (!registration) {
+            return res.status(404).json({ error: 'Registration not found' });
+        }
+        
+        // Remove private key from response
+        const safeReg = {
+            did: registration.did,
+            walletAddress: registration.walletAddress,
+            urn: registration.urn,
+            naam: registration.naam,
+            bedrijfsnaam: registration.bedrijfsnaam,
+            email: registration.email,
+            telefoon: registration.telefoon,
+            role: registration.role || 'farmer',
+            didType: registration.didType || registration.role || 'farmer',
+            timestamp: registration.timestamp,
+            txHash: registration.txHash,
+            verified: registration.verified
+        };
+        
+        res.json(safeReg);
+    } catch (e) {
+        console.error('Error /api/registration/:address', e);
+        res.status(500).json({ error: 'Failed to load registration' });
     }
 });
 

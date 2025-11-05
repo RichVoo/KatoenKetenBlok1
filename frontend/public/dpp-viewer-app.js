@@ -7,7 +7,9 @@ const DPP_ABI = [
     "function getIoTDataCount(uint256 batchId) view returns (uint256)",
     "function getIoTData(uint256 batchId, uint256 index) view returns (int256 temperature, uint256 humidity, string location, uint256 timestamp, address recorder)",
     "function getBatchPayments(uint256) view returns (tuple(address from, address to, uint256 amount, uint256 batchId, string reason, uint256 timestamp)[])",
-    "function dids(address) view returns (string identifier, string publicKey, string didType, uint256 registered, bool active)"
+    "function dids(address) view returns (string identifier, string publicKey, string didType, uint256 registered, bool active)",
+    "function getSubjectVCs(address subject) view returns (uint256[])",
+    "function getCredential(uint256 vcId) view returns (uint256 id, address issuer, address subject, string credentialType, string data, uint256 issuedAt, uint256 expiresAt, bool revoked)"
 ];
 
 let provider, contract;
@@ -110,16 +112,125 @@ async function loadDPP() {
         const iotCount = await contract.getIoTDataCount(batchId);
         const payments = await contract.getBatchPayments(batchId);
 
-        // Get farmer DID
-        let farmerName = "Onbekend";
+        // Helper function to get stakeholder info
+        async function getStakeholderInfo(address, defaultName = "Onbekend") {
+            try {
+                const response = await fetch(`http://localhost:3002/api/registration/${address}`);
+                if (response.ok) {
+                    const registration = await response.json();
+                    return {
+                        naam: registration.naam || defaultName,
+                        bedrijfsnaam: registration.bedrijfsnaam || "Onbekend Bedrijf",
+                        didType: registration.didType || "onbekend",
+                        email: registration.email || ""
+                    };
+                }
+            } catch (e) {
+                console.log(`Could not load info for ${address}:`, e);
+            }
+            return {
+                naam: defaultName,
+                bedrijfsnaam: "Onbekend Bedrijf",
+                didType: "onbekend",
+                email: ""
+            };
+        }
+
+        // Get farmer DID and registration info
+        let farmerInfo = {
+            naam: "Onbekend",
+            bedrijfsnaam: "Onbekende Boerderij",
+            location: "Onbekende Locatie"
+        };
+        
         try {
             const farmerDID = await contract.dids(batch.farmer);
             if (farmerDID.active) {
-                farmerName = farmerDID.didType === "farmer" ? "Boer" : farmerDID.didType;
+                const stakeholderInfo = await getStakeholderInfo(batch.farmer, "Boer");
+                farmerInfo.naam = stakeholderInfo.naam;
+                farmerInfo.bedrijfsnaam = stakeholderInfo.bedrijfsnaam;
+                // Origin is stored in the batch
+                farmerInfo.location = batch.origin || "Onbekende Locatie";
+                console.log("✅ Farmer info loaded:", farmerInfo);
             }
         } catch (e) {
-            console.log("No DID for farmer");
+            console.log("Could not load farmer info:", e);
         }
+
+        // Get farmer's VCs
+        let farmerVCs = [];
+        let vcCertificates = "Geen certificaten";
+        try {
+            const vcIds = await contract.getSubjectVCs(batch.farmer);
+            console.log("📋 Farmer has", vcIds.length, "VCs");
+            
+            for (const vcId of vcIds) {
+                const vc = await contract.getCredential(vcId);
+                
+                // Parse data to get real expiry date
+                let realExpiryDate = null;
+                let isExpired = false;
+                
+                try {
+                    const dataObj = JSON.parse(vc.data);
+                    if (dataObj.geldigTot) {
+                        realExpiryDate = new Date(dataObj.geldigTot);
+                        isExpired = Date.now() > realExpiryDate.getTime();
+                    } else {
+                        // Fallback to blockchain expiry
+                        isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                        realExpiryDate = new Date(Number(vc.expiresAt) * 1000);
+                    }
+                } catch (e) {
+                    // If parsing fails, use blockchain expiry
+                    isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                    realExpiryDate = new Date(Number(vc.expiresAt) * 1000);
+                }
+                
+                const isValid = !vc.revoked && !isExpired;
+                
+                if (isValid) {
+                    farmerVCs.push({
+                        id: vcId.toString(),
+                        type: vc.credentialType,
+                        issuer: vc.issuer,
+                        issuedAt: new Date(Number(vc.issuedAt) * 1000),
+                        expiresAt: realExpiryDate,
+                        data: vc.data
+                    });
+                }
+            }
+            
+            if (farmerVCs.length > 0) {
+                // Extract certificate types from VCs
+                const certTypes = farmerVCs.map(vc => {
+                    // Try to parse data for standard info
+                    try {
+                        const data = JSON.parse(vc.data);
+                        return data.norm || vc.type;
+                    } catch (e) {
+                        return vc.type;
+                    }
+                });
+                vcCertificates = certTypes.join(', ');
+            }
+            
+            console.log("✅ Loaded", farmerVCs.length, "valid VCs:", vcCertificates);
+        } catch (e) {
+            console.log("Could not load VCs:", e);
+        }
+
+        // Calculate totals for entire batch BEFORE building HTML
+        const batchWeight = Number(batch.weight.toString());
+        const waterFarm = Math.floor(batchWeight * 4.6); // 4.6L water per kg for farming
+        const waterTransportCalc = Math.floor(batchWeight * 0.05); // 0.05L water per kg for transport
+        const waterProcessingCalc = Math.floor(batchWeight * 0.65); // 0.65L water per kg for processing
+        const totalWater = waterFarm + waterTransportCalc + waterProcessingCalc;
+        
+        const co2Farm = (batchWeight * 0.5 / 1000).toFixed(2); // 0.5kg CO2 per ton
+        const co2TransportCalc = (batchWeight * 0.1 / 1000).toFixed(2); // 0.1kg CO2 per ton transported
+        const co2ProcessingCalc = (batchWeight * 0.15 / 1000).toFixed(2);
+        const totalCO2 = (parseFloat(co2Farm) + parseFloat(co2TransportCalc) + parseFloat(co2ProcessingCalc)).toFixed(2);
 
         // Build DPP HTML
         let html = `
@@ -176,7 +287,7 @@ async function loadDPP() {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Certificaten:</span>
-                        <span class="detail-value">GOTS, Fair Trade, BCI</span>
+                        <span class="detail-value">${vcCertificates}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">IoT Records:</span>
@@ -189,55 +300,82 @@ async function loadDPP() {
                 <h3>📜 Blockchain Verificatie & Certificaten</h3>
                 <div class="cert-stats">
                     <div class="cert-stat">
-                        <div class="cert-stat-value">18</div>
-                        <div class="cert-stat-label">Totaal Certificaten</div>
+                        <div class="cert-stat-value">${farmerVCs.length}</div>
+                        <div class="cert-stat-label">Geldige VCs</div>
                     </div>
                     <div class="cert-stat">
-                        <div class="cert-stat-value">8</div>
-                        <div class="cert-stat-label">Stakeholders</div>
+                        <div class="cert-stat-value">${iotCount.toString()}</div>
+                        <div class="cert-stat-label">IoT Records</div>
                     </div>
                     <div class="cert-stat">
-                        <div class="cert-stat-value">100%</div>
-                        <div class="cert-stat-label">Blockchain Verified</div>
+                        <div class="cert-stat-value">${farmerVCs.length > 0 ? '✓' : '✗'}</div>
+                        <div class="cert-stat-label">Gecertificeerd</div>
                     </div>
                     <div class="cert-stat">
-                        <div class="cert-stat-value">12</div>
-                        <div class="cert-stat-label">Int. Standaarden</div>
+                        <div class="cert-stat-value">${payments.length}</div>
+                        <div class="cert-stat-label">Betalingen</div>
                     </div>
                 </div>
-                <button onclick="window.location.href='certificate_viewer.html'" class="cert-button">
-                    📜 Bekijk alle certificaten
-                </button>
+                ${farmerVCs.length > 0 ? `
+                    <div style="margin-top: 15px; padding: 15px; background: #f0f9ff; border-radius: 8px; border-left: 4px solid #0ea5e9;">
+                        <strong style="color: #0c4a6e;">📜 Verifiable Credentials:</strong>
+                        ${farmerVCs.map(vc => `
+                            <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 6px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="color: #0284c7;">🎓 VC #${vc.id}</strong>
+                                    <span style="font-size: 12px; color: #059669;">✅ Geldig</span>
+                                </div>
+                                <div style="font-size: 13px; margin-top: 5px; color: #64748b;">
+                                    <strong>Type:</strong> ${vc.type}<br>
+                                    <strong>Geldig tot:</strong> ${vc.expiresAt.toLocaleDateString('nl-NL')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : `
+                    <div style="margin-top: 15px; padding: 15px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <strong style="color: #92400e;">⚠️ Geen geldige certificaten</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 13px; color: #78350f;">Deze boer heeft nog geen geldige Verifiable Credentials.</p>
+                    </div>
+                `}
             </div>
 
-            <div class="impact-box">
-                <div class="impact-left">
-                    <div class="impact-icon">💧</div>
-                    <div>
-                        <div class="impact-title">Gemiddeld watergebruik per batch</div>
-                        <div class="impact-stat">${Math.floor(Number(batch.weight.toString()) * 5.4)} L</div>
-                        <div class="impact-details">Totaal waterverbruik (irrigatie, verwerking en transport)</div>
-                        <ul class="impact-list">
-                            <li>Irrigatie: ~85% (~${Math.floor(Number(batch.weight.toString()) * 5.4 * 0.85)} L)</li>
-                            <li>Verwerking: ~10% (~${Math.floor(Number(batch.weight.toString()) * 5.4 * 0.10)} L)</li>
-                            <li>Overig: ~5% (~${Math.floor(Number(batch.weight.toString()) * 5.4 * 0.05)} L)</li>
-                        </ul>
+            <div class="impact-container">
+                <div class="impact-box">
+                    <div class="impact-left">
+                        <div class="impact-icon">💧</div>
+                        <div>
+                            <div class="impact-title">Watergebruik Batch #${batchId}</div>
+                            <div class="impact-stat">${totalWater} L</div>
+                            <div class="impact-details" style="margin-bottom: 8px;">
+                                <strong>Deze batch (${batchWeight}kg):</strong> ${totalWater}L totaal = ${(totalWater/batchWeight).toFixed(1)}L per kg<br>
+                                <strong>Industrie gemiddelde:</strong> 5.4L per kg katoen
+                            </div>
+                            <ul class="impact-list">
+                                <li>Teelt & oogst: ${waterFarm} L (${Math.floor(waterFarm/totalWater*100)}%)</li>
+                                <li>Transport: ${waterTransportCalc} L (${Math.floor(waterTransportCalc/totalWater*100)}%)</li>
+                                <li>Verwerking: ${waterProcessingCalc} L (${Math.floor(waterProcessingCalc/totalWater*100)}%)</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="impact-box co2">
-                <div class="impact-left">
-                    <div class="impact-icon">💨</div>
-                    <div>
-                        <div class="impact-title">Gemiddelde CO2-uitstoot per batch</div>
-                        <div class="impact-stat">${(Number(batch.weight.toString()) * 0.99 / 100).toFixed(2)} kg</div>
-                        <div class="impact-details">Totale CO2-uitstoot over de gehele supply chain</div>
-                        <ul class="impact-list">
-                            <li>Teelt & oogst: ~${(Number(batch.weight.toString()) * 0.5 / 1000).toFixed(2)} kg</li>
-                            <li>Transport: ~${(Number(batch.weight.toString()) * 0.1 / 1000).toFixed(2)} kg</li>
-                            <li>Verwerking: ~${(Number(batch.weight.toString()) * 0.39 / 1000).toFixed(2)} kg</li>
-                        </ul>
+                <div class="impact-box co2">
+                    <div class="impact-left">
+                        <div class="impact-icon">💨</div>
+                        <div>
+                            <div class="impact-title">CO2-uitstoot Batch #${batchId}</div>
+                            <div class="impact-stat">${totalCO2} kg</div>
+                            <div class="impact-details" style="margin-bottom: 8px;">
+                                <strong>Deze batch (${batchWeight}kg):</strong> ${totalCO2}kg totaal = ${(parseFloat(totalCO2)/batchWeight*1000).toFixed(2)}g per kg<br>
+                                <strong>Industrie gemiddelde:</strong> 0.75g per kg katoen
+                            </div>
+                            <ul class="impact-list">
+                                <li>Teelt & oogst: ${co2Farm} kg (${Math.floor(parseFloat(co2Farm)/parseFloat(totalCO2)*100)}%)</li>
+                                <li>Transport: ${co2TransportCalc} kg (${Math.floor(parseFloat(co2TransportCalc)/parseFloat(totalCO2)*100)}%)</li>
+                                <li>Verwerking: ${co2ProcessingCalc} kg (${Math.floor(parseFloat(co2ProcessingCalc)/parseFloat(totalCO2)*100)}%)</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -251,18 +389,24 @@ async function loadDPP() {
 
         // Step 1: Batch Creation (Farmer)
         const createdDate = new Date(Number(batch.createdAt.toString()) * 1000);
-        const co2Farm = (Number(batch.weight.toString()) * 0.5 / 1000).toFixed(2); // 0.5kg CO2 per ton
         html += `
             <div class="timeline-item">
                 <div class="timeline-header">
                     <div>
                         <div class="timeline-title">👨‍🌾 Stap 1: Katoenoogst bij Boer</div>
                         <div style="color: #64748b; font-size: 14px; margin-top: 5px;">
-                            Rajesh Kumar - Gujarat, India
+                            ${farmerInfo.naam} - ${farmerInfo.bedrijfsnaam}
+                        </div>
+                        <div style="color: #94a3b8; font-size: 13px; margin-top: 3px;">
+                            📍 ${farmerInfo.location}
+                        </div>
+                        <div class="action-buttons">
+                            <button type="button" class="action-btn" onclick="window.open('https://www.boerboer.nl/','_blank')">Bekijk</button>
+                            <button type="button" class="action-btn donate" onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
                         </div>
                     </div>
                     <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
-                        <div class="timeline-date" style="text-align: center;">💨 CO2: ${co2Farm}kg</div>
+                        <div class="timeline-date" style="text-align: center;">💨 CO2: ${co2Farm}kg | 💧 Water: ${waterFarm}L</div>
                         <div class="timeline-date">📅 ${createdDate.toLocaleDateString('nl-NL')}</div>
                     </div>
                 </div>
@@ -287,8 +431,8 @@ async function loadDPP() {
                         <span>${batch.quality.toString()}/100 ${Number(batch.quality.toString()) >= 90 ? '- Uitstekend' : Number(batch.quality.toString()) >= 70 ? '- Goed' : '- Voldoende'}</span>
                     </div>
                     <div class="data-badge">
-                        <strong>Certificaten</strong>
-                        <span>GOTS, Fair Trade, BCI</span>
+                        <strong>Verifiable Credentials</strong>
+                        <span>${farmerVCs.length > 0 ? farmerVCs.map(vc => `VC #${vc.id}`).join(', ') : 'Geen VCs'}</span>
                     </div>
                     <div class="data-badge">
                         <strong>Blockchain TX</strong>
@@ -308,6 +452,9 @@ async function loadDPP() {
             const firstDate = new Date(Number(firstIoT.timestamp.toString()) * 1000);
             const lastDate = new Date(Number(lastIoT.timestamp.toString()) * 1000);
             
+            // Get transporter info from IoT recorder
+            const transporterInfo = await getStakeholderInfo(firstIoT.recorder, "Transporteur");
+            
             // Calculate temperature range
             let minTemp = Number(firstIoT.temperature.toString());
             let maxTemp = Number(firstIoT.temperature.toString());
@@ -322,18 +469,21 @@ async function loadDPP() {
             }
             avgTemp = Math.floor(avgTemp / iotCountNum);
 
-            const co2Transport = (Number(batch.weight.toString()) * 0.1 / 1000).toFixed(2); // 0.1kg CO2 per ton transported
             html += `
                 <div class="timeline-item">
                     <div class="timeline-header">
                         <div>
                             <div class="timeline-title">🚛 Stap 2: Transport naar Verwerker</div>
                             <div style="color: #64748b; font-size: 14px; margin-top: 5px;">
-                                LogiCotton Transport Services
+                                ${transporterInfo.naam} - ${transporterInfo.bedrijfsnaam}
+                            </div>
+                            <div class="action-buttons">
+                                <button type="button" class="action-btn" onclick="window.open('https://www.dhl.com/nl-nl/home.html','_blank')">Bekijk</button>
+                                <button type="button" class="action-btn donate" onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
                             </div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
-                            <div class="timeline-date" style="text-align: center;">💨 CO2: ${co2Transport}kg</div>
+                            <div class="timeline-date" style="text-align: center;">💨 CO2: ${co2TransportCalc}kg | 💧 Water: ${waterTransportCalc}L</div>
                             <div class="timeline-date">📅 ${firstDate.toLocaleDateString('nl-NL')} - ${lastDate.toLocaleDateString('nl-NL')}</div>
                         </div>
                     </div>
@@ -394,18 +544,21 @@ async function loadDPP() {
 
         // Step 3: Quality Check & Status Updates
         if (batch.status >= 3) {
-            const co2Processing = (Number(batch.weight.toString()) * 0.15 / 1000).toFixed(2);
             html += `
                 <div class="timeline-item">
                     <div class="timeline-header">
                         <div>
                             <div class="timeline-title">🏭 Stap 3: Verwerking (Ginning)</div>
                             <div style="color: #64748b; font-size: 14px; margin-top: 5px;">
-                                Maharashtra Cotton Processing
+                                Inkoop Coöperatie Processing
+                            </div>
+                            <div class="action-buttons">
+                                <button type="button" class="action-btn" onclick="window.open('https://www.inkoop-coop.nl','_blank')">Bekijk</button>
+                                <button type="button" class="action-btn donate" onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
                             </div>
                         </div>
                         <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
-                            <div class="timeline-date" style="text-align: center;">💨 CO2: ${co2Processing}kg</div>
+                            <div class="timeline-date" style="text-align: center;">💨 CO2: ${co2ProcessingCalc}kg | 💧 Water: ${waterProcessingCalc}L</div>
                             <div class="timeline-date">📅 Na Transport</div>
                         </div>
                     </div>
@@ -430,8 +583,8 @@ async function loadDPP() {
                             <span>${Math.floor(Number(batch.weight.toString()) * 0.4)} kg clean fiber</span>
                         </div>
                         <div class="data-badge">
-                            <strong>Certificaten</strong>
-                            <span>GOTS Processing, ISO 14001</span>
+                            <strong>Boer Certificaten</strong>
+                            <span>${vcCertificates}</span>
                         </div>
                     </div>
                 </div>
@@ -441,11 +594,11 @@ async function loadDPP() {
         // Helper function to get stakeholder name
         const getStakeholderName = (address) => {
             const addr = address.toLowerCase();
-            if (addr.includes('f39fd')) return 'Admin (Fabriek)';
+            if (addr.includes('f39fd')) return 'Admin (Inkoop Coöperatie)';
             if (addr.includes('70997')) return 'Rajesh Kumar (Boer)';
             if (addr.includes('3c44c')) return 'LogiCotton Transport';
             if (addr.includes('90f79')) return 'Quality Certifier';
-            if (addr.includes('15d34')) return 'Maharashtra Processing';
+            if (addr.includes('15d34')) return 'Inkoop Coöperatie Processing';
             return address.substring(0, 10) + '...';
         };
 
