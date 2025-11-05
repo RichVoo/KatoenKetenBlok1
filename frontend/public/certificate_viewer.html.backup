@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="nl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificaten Overzicht - DPP</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            color: #1e3a8a;
+            padding: 12px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .stakeholder-section {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .stakeholder-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding-bottom: 25px;
+            border-bottom: 3px solid #e2e8f0;
+            margin-bottom: 30px;
+        }
+
+        .stakeholder-icon {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #3b82f6, #1e3a8a);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+        }
+
+        .stakeholder-info {
+            flex: 1;
+        }
+
+        .stakeholder-info h2 {
+            color: #1e293b;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .stakeholder-info p {
+            color: #64748b;
+            font-size: 16px;
+        }
+
+        .certificates-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 25px;
+        }
+
+        .certificate-card {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .certificate-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 6px;
+            height: 100%;
+            background: linear-gradient(180deg, #3b82f6, #06b6d4);
+        }
+
+        .certificate-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+
+        .certificate-header {
+            display: flex;
+            align-items: start;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .cert-icon {
+            width: 60px;
+            height: 60px;
+            background: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            border: 2px solid #3b82f6;
+            flex-shrink: 0;
+        }
+
+        .cert-title-area {
+            flex: 1;
+        }
+
+        .cert-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #1e293b;
+            margin-bottom: 5px;
+        }
+
+        .cert-number {
+            font-size: 13px;
+            color: #64748b;
+            font-family: monospace;
+        }
+
+        .cert-description {
+            color: #475569;
+            line-height: 1.7;
+            margin-bottom: 20px;
+            font-size: 15px;
+        }
+
+        .cert-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .cert-detail {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .cert-detail-label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .cert-detail-value {
+            font-size: 14px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .cert-issuer {
+            background: linear-gradient(135deg, #dbeafe, #e0e7ff);
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .cert-issuer-title {
+            font-size: 12px;
+            color: #1e40af;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .cert-issuer-name {
+            font-size: 16px;
+            color: #1e3a8a;
+            font-weight: bold;
+        }
+
+        .cert-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .cert-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .cert-badge.verified {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .cert-badge.blockchain {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .cert-badge.active {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .no-certificates {
+            text-align: center;
+            padding: 40px;
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .summary-box {
+            background: linear-gradient(135deg, #ede9fe, #ddd6fe);
+            border: 2px solid #8b5cf6;
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .summary-box h3 {
+            color: #5b21b6;
+            font-size: 20px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #1e3a8a;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+        }
+
+        @media (max-width: 768px) {
+            .certificates-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cert-details {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📜 Verifiable Credentials Overzicht</h1>
+            <p id="batch-subtitle">Alle VCs van deze batch</p>
+        </div>
+
+        <a href="#" onclick="history.back(); return false;" class="back-button">
+            ← Terug naar DPP
+        </a>
+
+        <div id="loading" style="text-align: center; color: white; font-size: 24px; padding: 40px;">
+            <div style="display: inline-block; animation: spin 1s linear infinite;">⏳</div>
+            <p>VCs laden...</p>
+        </div>
+
+        <div id="vc-content" style="display: none;">
+            <div class="summary-box">
+                <h3>📊 Totaal Overzicht VCs</h3>
+                <div class="summary-stats" id="summary-stats">
+                    <!-- Dynamic stats -->
+                </div>
+            </div>
+
+            <div id="vc-list">
+                <!-- Dynamic VC cards -->
+        <div class="stakeholder-section">
+            <div class="stakeholder-header">
+                <div class="stakeholder-icon">👨‍🌾</div>
+                <div class="stakeholder-info">
+                    <h2>Boer - Rajesh Kumar</h2>
+                    <p>Katoenproducent • Gujarat, India</p>
+                </div>
+            </div>
+
+            <div class="certificates-grid">
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">🌱</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">GOTS Certificering</div>
+                            <div class="cert-number">CERT-GOTS-2024-IN-7892</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        Global Organic Textile Standard (GOTS) is de wereldwijde toonaangevende standaard voor biologische vezels. Dit certificaat garandeert dat het katoen biologisch is geteeld zonder synthetische pesticiden, kunstmest of genetisch gemodificeerde zaden. Ook sociale criteria zoals eerlijke arbeidsomstandigheden zijn vereist.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">Control Union Certifications</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">15 Jan 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">14 Jan 2025</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Certificaat Niveau</div>
+                            <div class="cert-detail-value">GOTS 6.0</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Scope</div>
+                            <div class="cert-detail-value">Growing & Ginning</div>
+                        </div>
+                    </div>
+                    <div class="cert-badges">
+                        <span class="cert-badge verified">✅ Geverifieerd</span>
+                        <span class="cert-badge blockchain">⛓️ On-chain</span>
+                        <span class="cert-badge active">📅 Actief</span>
+                    </div>
+                </div>
+
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">🤝</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">Fair Trade Certificering</div>
+                            <div class="cert-number">CERT-FT-2024-IN-4521</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        Fair Trade certificering waarborgt eerlijke handelspraktijken en betere arbeidsomstandigheden voor boeren en arbeiders. Boeren ontvangen een fair trade premium bovenop de marktprijs die geïnvesteerd wordt in gemeenschapsprojecten en duurzame landbouwpraktijken.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">Fairtrade International (FLO)</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">1 Feb 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">31 Jan 2025</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Producer ID</div>
+                            <div class="cert-detail-value">FLO-ID 28945</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Regio</div>
+                            <div class="cert-detail-value">Gujarat, India</div>
+                        </div>
+                    </div>
+                    <div class="cert-badges">
+                        <span class="cert-badge verified">✅ Geverifieerd</span>
+                        <span class="cert-badge blockchain">⛓️ On-chain</span>
+                        <span class="cert-badge active">📅 Actief</span>
+                    </div>
+                </div>
+
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">💧</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">Better Cotton Initiative (BCI)</div>
+                            <div class="cert-number">CERT-BCI-2024-IN-6783</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        Better Cotton Initiative is het grootste duurzame katoen programma ter wereld. BCI boeren worden getraind in waterefficiënt irrigeren, het verminderen van schadelijke chemicaliën, en het beschermen van natuurlijke habitats. Dit certificaat bevestigt naleving van BCI's duurzaamheidsprincipes.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">Better Cotton Initiative</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">10 Jan 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">9 Jan 2025</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Farm Size</div>
+                            <div class="cert-detail-value">12 hectare</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Water Saving</div>
+                            <div class="cert-detail-value">45% reductie</div>
+                        </div>
+                    </div>
+                    <div class="cert-badges">
+                        <span class="cert-badge verified">✅ Geverifieerd</span>
+                        <span class="cert-badge blockchain">⛓️ On-chain</span>
+                        <span class="cert-badge active">📅 Actief</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transport Certificaten -->
+        <div class="stakeholder-section">
+            <div class="stakeholder-header">
+                <div class="stakeholder-icon">🚛</div>
+                <div class="stakeholder-info">
+                    <h2>Transporteur - LogiCotton Transport</h2>
+                    <p>Logistiek dienstverlener • Pan-India Operations</p>
+                </div>
+            </div>
+
+            <div class="certificates-grid">
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">📦</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">ISO 9001:2015 Kwaliteitsbeheer</div>
+                            <div class="cert-number">CERT-ISO9001-2024-IN-3421</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        ISO 9001 is de internationale standaard voor kwaliteitsmanagementsystemen. Dit certificaat bewijst dat LogiCotton gestructureerde processen heeft voor het leveren van consistente, hoogwaardige transportdiensten die voldoen aan klant- en wettelijke eisen.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">Bureau Veritas Certification</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">20 Feb 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">19 Feb 2027</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Scope</div>
+                            <div class="cert-detail-value">Road Transport Services</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Audit Score</div>
+                            <div class="cert-detail-value">96/100</div>
+                        </div>
+                    </div>
+                    <div class="cert-badges">
+                        <span class="cert-badge verified">✅ Geverifieerd</span>
+                        <span class="cert-badge blockchain">⛓️ On-chain</span>
+                        <span class="cert-badge active">📅 Actief</span>
+                    </div>
+                </div>
+
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">🌡️</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">GDP Certificering</div>
+                            <div class="cert-number">CERT-GDP-2024-IN-8823</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        Good Distribution Practice (GDP) certificering voor temperatuurgecontroleerd transport. Garandeert dat producten worden vervoerd onder gecontroleerde condities met continue monitoring van temperatuur en luchtvochtigheid volgens internationale richtlijnen.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">SGS India Pvt. Ltd.</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">5 Jan 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">4 Jan 2026</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">IoT Systeem</div>
+                            <div class="cert-detail-value">Real-time Monitoring</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Compliance</div>
+                            <div class="cert-detail-value">100%</div>
+                        </div>
+                    </div>
+                    <div class="cert-badges">
+                        <span class="cert-badge verified">✅ Geverifieerd</span>
+                        <span class="cert-badge blockchain">⛓️ On-chain</span>
+                        <span class="cert-badge active">📅 Actief</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Verwerker/Ginning Certificaten -->
+        <div class="stakeholder-section">
+            <div class="stakeholder-header">
+                <div class="stakeholder-icon">🏭</div>
+                <div class="stakeholder-section">
+                    <h2>Verwerker - Inkoop Coöperatie Processing</h2>
+                    <p>Katoenverwerking (Ginning) • Nederland</p>
+                </div>
+            </div>
+
+            <div class="certificates-grid">
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">🌱</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">GOTS Processing Certificaat</div>
+                            <div class="cert-number">CERT-GOTS-PROC-2024-IN-5521</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        GOTS Processing certificering voor verwerkingsfaciliteiten. Waarborgt dat biologisch katoen verwerkt wordt zonder contaminatie met conventioneel katoen, met strenge eisen voor chemicaliën, waterbehandeling, energieverbruik en sociale criteria voor werknemers.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">ECOCERT Greenlife</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">12 Feb 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">11 Feb 2025</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Facility Code</div>
+                            <div class="cert-detail-value">GOTS-PROC-IN-8821</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Processing Type</div>
+                            <div class="cert-detail-value">Ginning & Baling</div>
+                        </div>
+                    </div>
+                    <div class="cert-badges">
+                        <span class="cert-badge verified">✅ Geverifieerd</span>
+                        <span class="cert-badge blockchain">⛓️ On-chain</span>
+                        <span class="cert-badge active">📅 Actief</span>
+                    </div>
+                </div>
+
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">🏭</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">ISO 14001:2015 Milieubeheer</div>
+                            <div class="cert-number">CERT-ISO14001-2024-IN-7743</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        ISO 14001 certificering voor Environmental Management Systems. Bewijst dat de verwerkingsfaciliteit systematisch haar milieu-impact reduceert door efficiënt gebruik van water en energie, afvalreductie en naleving van alle milieuvoorschriften.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">TÜV SÜD South Asia</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">8 Mar 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">7 Mar 2027</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">CO2 Reductie</div>
+                            <div class="cert-detail-value">35% sinds 2020</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Water Recycling</div>
+                            <div class="cert-detail-value">80%</div>
+                        </div>
+                    </div>
+                    <div class="cert-badges">
+                        <span class="cert-badge verified">✅ Geverifieerd</span>
+                        <span class="cert-badge blockchain">⛓️ On-chain</span>
+                        <span class="cert-badge active">📅 Actief</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spinnerij Certificaten -->
+        <div class="stakeholder-section">
+            <div class="stakeholder-header">
+                <div class="stakeholder-icon">🧵</div>
+                <div class="stakeholder-info">
+                    <h2>Spinnerij - Tamil Spinning Mills</h2>
+                    <p>Garenproductie • Tamil Nadu, India</p>
+                </div>
+            </div>
+
+            <div class="certificates-grid">
+                <div class="certificate-card">
+                    <div class="certificate-header">
+                        <div class="cert-icon">🌿</div>
+                        <div class="cert-title-area">
+                            <div class="cert-title">OCS (Organic Content Standard)</div>
+                            <div class="cert-number">CERT-OCS-2024-IN-9932</div>
+                        </div>
+                    </div>
+                    <div class="cert-description">
+                        Organic Content Standard certificering verifieert de aanwezigheid en hoeveelheid biologisch materiaal in het eindproduct. OCS gebruikt een Chain of Custody systeem om biologische materialen te traceren vanaf de bron tot het eindproduct, zonder strikte eisen voor verwerkingsmethoden.
+                    </div>
+                    <div class="cert-issuer">
+                        <div class="cert-issuer-title">UITGEGEVEN DOOR</div>
+                        <div class="cert-issuer-name">Control Union Certifications India</div>
+                    </div>
+                    <div class="cert-details">
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Uitgiftedatum</div>
+                            <div class="cert-detail-value">18 Jan 2024</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Geldig tot</div>
+                            <div class="cert-detail-value">17 Jan 2025</div>
+                        </div>
+                        <div class="cert-detail">
+                            <div class="cert-detail-label">Organic Content</div>
+                            <div class="cert-detail-value">100% OCS 100</div>

@@ -201,35 +201,11 @@
             border-left: 6px solid #3b82f6;
             transition: all 0.3s ease;
             position: relative;
-            cursor: pointer;
         }
 
         .vc-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 8px 25px rgba(59, 130, 246, 0.3);
-        }
-        
-        .vc-card.clickable:hover {
-            border-left-color: #10b981;
-        }
-        
-        .vc-card.clickable::after {
-            content: '🔗 Klik voor meer info';
-            position: absolute;
-            top: 12px;
-            right: 12px;
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: 600;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-        
-        .vc-card.clickable:hover::after {
-            opacity: 1;
         }
 
         .vc-header {
@@ -466,28 +442,6 @@
                 return 'Dit blockchain-geverifieerd certificaat bevestigt de <strong>authenticiteit en traceerbaarheid</strong> van dit katoen product door de gehele supply chain.';
             }
         }
-        
-        function getCertURL(certType) {
-            if (certType.includes('GOTS')) {
-                return 'https://global-standard.org/';
-            } else if (certType.includes('Fair') || certType.includes('FairTrade')) {
-                return 'https://www.fairtrade.net/';
-            } else if (certType.includes('BCI')) {
-                return 'https://bettercotton.org/';
-            } else if (certType.includes('ISO 9001')) {
-                return 'https://www.iso.org/iso-9001-quality-management.html';
-            } else if (certType.includes('GDP')) {
-                return 'https://www.who.int/medicines/areas/quality_assurance/quality_assurance_trainees/en/';
-            } else if (certType.includes('ISO 14001')) {
-                return 'https://www.iso.org/iso-14001-environmental-management.html';
-            } else if (certType.includes('OCS')) {
-                return 'https://textileexchange.org/knowledge-center/standards/organic-content-standard/';
-            } else if (certType.includes('Organic')) {
-                return 'https://global-standard.org/';
-            } else {
-                return null;
-            }
-        }
 
         async function init() {
             try {
@@ -555,7 +509,6 @@
                     const certType = vc.credentialType;
                     const stakeholder = determineStakeholder(certType);
                     const certDescription = getCertDescription(certType);
-                    const certURL = getCertURL(certType);
                     
                     let statusClass = 'valid', statusText = '✅ Geldig';
                     if (isRevoked) {
@@ -577,7 +530,7 @@
                     }
                     
                     vcsByStakeholder[stakeholder.name].vcs.push({
-                        vcId, vc, certType, certDescription, certURL, statusClass, statusText,
+                        vcId, vc, certType, certDescription, statusClass, statusText,
                         issuedDate, realExpiryDate, isExpired, isRevoked, vcDataObj
                     });
                 }
@@ -621,11 +574,8 @@
                     `;
                     
                     for (const vcData of stakeholderData.vcs) {
-                        const clickableClass = vcData.certURL ? 'clickable' : '';
-                        const onclickAttr = vcData.certURL ? `onclick="window.open('${vcData.certURL}', '_blank')"` : '';
-                        
                         html += `
-                            <div class="vc-card ${clickableClass}" ${onclickAttr}>
+                            <div class="vc-card">
                                 <div class="vc-header">
                                     <div class="vc-title-section">
                                         <div class="vc-title">${vcData.certType}</div>

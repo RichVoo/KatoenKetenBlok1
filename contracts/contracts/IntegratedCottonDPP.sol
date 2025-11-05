@@ -40,7 +40,7 @@ contract IntegratedCottonDPP is AccessControl {
         bool revoked;
     }
 
-    // Batch met volledige lifecycle
+    // Batch met volledige lifecycle en escrow
     struct Batch {
         uint256 id;
         address farmer;
@@ -52,6 +52,12 @@ contract IntegratedCottonDPP is AccessControl {
         address currentOwner;
         uint256[] vcIds; // Gekoppelde credentials
         bool exists;
+        // Markt & Escrow velden
+        bool onMarket; // Is batch op markt?
+        address buyer; // Inkoopcoöperatie die gekocht heeft
+        uint256 escrowAmount; // Vastgezet bedrag in USDT
+        bool certified; // Door certificeerder goedgekeurd?
+        bool rejected; // Door certificeerder afgekeurd?
     }
 
     // IoT Data
@@ -74,12 +80,14 @@ contract IntegratedCottonDPP is AccessControl {
     }
 
     enum BatchStatus {
-        Created,
-        Verified,
-        InTransit,
-        QualityChecked,
-        Delivered,
-        Completed
+        Created,        // 0: Batch aangemaakt, op markt
+        Reserved,       // 1: Gekocht door coöperatie, geld in escrow
+        Verified,       // 2: Goedgekeurd door certificeerder
+        Rejected,       // 3: Afgekeurd door certificeerder
+        InTransit,      // 4: In transport
+        QualityChecked, // 5: Kwaliteit gecontroleerd
+        Delivered,      // 6: Afgeleverd
+        Completed       // 7: Compleet
     }
 
     // Mappings
@@ -98,6 +106,11 @@ contract IntegratedCottonDPP is AccessControl {
     event BatchStatusUpdated(uint256 indexed batchId, BatchStatus status);
     event IoTDataAdded(uint256 indexed batchId, int256 temperature, uint256 humidity, string location);
     event PaymentMade(uint256 indexed batchId, address indexed from, address indexed to, uint256 amount, string reason);
+    // Markt events
+    event BatchPurchased(uint256 indexed batchId, address indexed buyer, uint256 escrowAmount);
+    event BatchCertified(uint256 indexed batchId, address indexed certifier, bool approved);
+    event EscrowReleased(uint256 indexed batchId, address indexed recipient, uint256 amount);
+    event EscrowRefunded(uint256 indexed batchId, address indexed buyer, uint256 amount);
     event VCAttachedToBatch(uint256 indexed batchId, uint256 indexed vcId);
 
     constructor(address _usdtAddress) {
@@ -217,12 +230,106 @@ contract IntegratedCottonDPP is AccessControl {
             status: BatchStatus.Created,
             currentOwner: msg.sender,
             vcIds: new uint256[](0),
-            exists: true
+            exists: true,
+            onMarket: true,           // Direct op markt
+            buyer: address(0),         // Nog geen koper
+            escrowAmount: 0,          // Nog geen escrow
+            certified: false,         // Nog niet gecertificeerd
+            rejected: false           // Nog niet afgekeurd
         });
 
         farmerBatches[msg.sender].push(newBatchId);
 
         emit BatchCreated(newBatchId, msg.sender, weight, initialQuality);
+    }
+
+    /**
+     * @dev Inkoopcoöperatie koopt batch van markt
+     * Betaling wordt in escrow vastgezet
+     */
+    function purchaseBatch(uint256 batchId) external onlyRole(FACTORY_ROLE) {
+        require(batches[batchId].exists, "Batch does not exist");
+        require(batches[batchId].onMarket, "Batch not on market");
+        require(batches[batchId].status == BatchStatus.Created, "Batch already purchased");
+        
+        // Bereken betaling o.b.v. kwaliteit
+        uint256 quality = batches[batchId].initialQuality;
+        uint256 weight = batches[batchId].weight;
+        
+        uint256 ratePerKg = 10 * 10**6; // 10 USDT basis (6 decimals)
+        if (quality >= 90) {
+            ratePerKg = 13 * 10**6; // 13 USDT (+30%)
+        } else if (quality >= 70) {
+            ratePerKg = 115 * 10**5; // 11.5 USDT (+15%)
+        }
+        
+        uint256 totalAmount = weight * ratePerKg; // weight (kg) * pricePerKg (USDT met 6 decimals)
+        
+        // Transfer USDT naar contract (escrow)
+        require(usdt.transferFrom(msg.sender, address(this), totalAmount), "USDT transfer failed");
+        
+        // Update batch
+        batches[batchId].status = BatchStatus.Reserved;
+        batches[batchId].onMarket = false;
+        batches[batchId].buyer = msg.sender;
+        batches[batchId].escrowAmount = totalAmount;
+        batches[batchId].currentOwner = msg.sender;
+        
+        emit BatchPurchased(batchId, msg.sender, totalAmount);
+        emit BatchStatusUpdated(batchId, BatchStatus.Reserved);
+    }
+
+    /**
+     * @dev Certificeerder keurt batch goed of af
+     */
+    function certifyBatch(uint256 batchId, bool approved) external onlyRole(CERTIFIER_ROLE) {
+        require(batches[batchId].exists, "Batch does not exist");
+        require(batches[batchId].status == BatchStatus.Reserved, "Batch must be reserved");
+        require(!batches[batchId].certified && !batches[batchId].rejected, "Batch already certified");
+        
+        if (approved) {
+            // Goedgekeurd: betaal boer uit escrow
+            batches[batchId].certified = true;
+            batches[batchId].status = BatchStatus.Verified;
+            
+            address farmer = batches[batchId].farmer;
+            uint256 amount = batches[batchId].escrowAmount;
+            
+            require(usdt.transfer(farmer, amount), "USDT transfer to farmer failed");
+            
+            // Track payment
+            batchPayments[batchId].push(Payment({
+                from: batches[batchId].buyer,
+                to: farmer,
+                amount: amount,
+                batchId: batchId,
+                reason: "Certified batch payment",
+                timestamp: block.timestamp
+            }));
+            
+            emit EscrowReleased(batchId, farmer, amount);
+            emit PaymentMade(batchId, batches[batchId].buyer, farmer, amount, "Certified batch payment");
+        } else {
+            // Afgekeurd: geld terug naar koper
+            batches[batchId].rejected = true;
+            batches[batchId].status = BatchStatus.Rejected;
+            batches[batchId].onMarket = true; // Terug op markt
+            
+            address buyer = batches[batchId].buyer;
+            uint256 amount = batches[batchId].escrowAmount;
+            
+            require(usdt.transfer(buyer, amount), "USDT refund failed");
+            
+            // Reset batch voor herverkoop
+            batches[batchId].buyer = address(0);
+            batches[batchId].escrowAmount = 0;
+            batches[batchId].currentOwner = batches[batchId].farmer;
+            
+            emit EscrowRefunded(batchId, buyer, amount);
+        }
+        
+        emit BatchCertified(batchId, msg.sender, approved);
+        emit BatchStatusUpdated(batchId, batches[batchId].status);
     }
 
     /**
@@ -232,10 +339,16 @@ contract IntegratedCottonDPP is AccessControl {
     function updateBatchStatus(uint256 batchId, BatchStatus newStatus) external {
         require(batches[batchId].exists, "Batch does not exist");
         
+        // Reserved, Verified en Rejected worden nu via purchaseBatch en certifyBatch functies gezet
+        require(
+            newStatus != BatchStatus.Reserved && 
+            newStatus != BatchStatus.Verified && 
+            newStatus != BatchStatus.Rejected,
+            "Use purchaseBatch/certifyBatch for these statuses"
+        );
+        
         // Check role-based permissions for status transitions
-        if (newStatus == BatchStatus.Verified) {
-            require(hasRole(CERTIFIER_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only certifier can verify");
-        } else if (newStatus == BatchStatus.InTransit) {
+        if (newStatus == BatchStatus.InTransit) {
             require(hasRole(TRANSPORTER_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only transporter can set in transit");
         } else if (newStatus == BatchStatus.QualityChecked || newStatus == BatchStatus.Delivered || newStatus == BatchStatus.Completed) {
             require(hasRole(FACTORY_ROLE, msg.sender) || hasRole(DEFAULT_ADMIN_ROLE, msg.sender), "Only factory can update to this status");
@@ -398,18 +511,23 @@ contract IntegratedCottonDPP is AccessControl {
      * @dev Haal batch informatie op
      */
     function getBatch(uint256 batchId) external view returns (
-        uint256 id,
-        address farmer,
-        uint256 weight,
-        uint256 quality,
-        string memory origin,
-        uint256 createdAt,
-        BatchStatus status,
-        address currentOwner,
-        uint256[] memory vcIds
+        uint256,
+        address,
+        uint256,
+        uint256,
+        string memory,
+        uint256,
+        BatchStatus,
+        address,
+        uint256[] memory,
+        bool,
+        address,
+        uint256,
+        bool,
+        bool
     ) {
-        require(batches[batchId].exists, "Batch does not exist");
-        Batch memory batch = batches[batchId];
+        Batch storage batch = batches[batchId];
+        require(batch.exists, "Batch does not exist");
         return (
             batch.id,
             batch.farmer,
@@ -419,8 +537,61 @@ contract IntegratedCottonDPP is AccessControl {
             batch.createdAt,
             batch.status,
             batch.currentOwner,
-            batch.vcIds
+            batch.vcIds,
+            batch.onMarket,
+            batch.buyer,
+            batch.escrowAmount,
+            batch.certified,
+            batch.rejected
         );
+    }
+
+    /**
+     * @dev Haal alle batches op markt op
+     */
+    function getMarketBatches() external view returns (uint256[] memory) {
+        uint256 count = 0;
+        // Tel eerst hoeveel batches op markt staan
+        for (uint256 i = 1; i <= _batchIdCounter; i++) {
+            if (batches[i].onMarket && batches[i].status == BatchStatus.Created) {
+                count++;
+            }
+        }
+        
+        // Maak array en vul met batch IDs
+        uint256[] memory marketBatches = new uint256[](count);
+        uint256 index = 0;
+        for (uint256 i = 1; i <= _batchIdCounter; i++) {
+            if (batches[i].onMarket && batches[i].status == BatchStatus.Created) {
+                marketBatches[index] = i;
+                index++;
+            }
+        }
+        
+        return marketBatches;
+    }
+
+    /**
+     * @dev Haal alle gereserveerde batches op (wachten op certificering)
+     */
+    function getReservedBatches() external view returns (uint256[] memory) {
+        uint256 count = 0;
+        for (uint256 i = 1; i <= _batchIdCounter; i++) {
+            if (batches[i].status == BatchStatus.Reserved) {
+                count++;
+            }
+        }
+        
+        uint256[] memory reservedBatches = new uint256[](count);
+        uint256 index = 0;
+        for (uint256 i = 1; i <= _batchIdCounter; i++) {
+            if (batches[i].status == BatchStatus.Reserved) {
+                reservedBatches[index] = i;
+                index++;
+            }
+        }
+        
+        return reservedBatches;
     }
 
     /**

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifiable Credentials - DPP</title>
+    <script src="https://cdn.ethers.io/lib/ethers-5.7.2.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            color: #1e3a8a;
+            padding: 12px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .vc-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-left: 6px solid #0ea5e9;
+        }
+
+        .vc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .vc-title {
+            font-size: 24px;
+            color: #1e293b;
+            font-weight: 700;
+        }
+
+        .vc-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .vc-status.valid {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .vc-status.expired {
+            background: #fed7aa;
+            color: #92400e;
+        }
+
+        .vc-status.revoked {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .vc-detail-row {
+            display: grid;
+            grid-template-columns: 180px 1fr;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        .vc-detail-label {
+            font-weight: 600;
+            color: #64748b;
+        }
+
+        .vc-detail-value {
+            color: #1e293b;
+        }
+
+        .vc-data-box {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .vc-data-title {
+            font-weight: 700;
+            color: #0ea5e9;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .no-vcs {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        .no-vcs h2 {
+            color: #f59e0b;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📜 Verifiable Credentials</h1>
+            <p id="batch-info">Batch certificaten</p>
+        </div>
+
+        <a href="#" onclick="history.back(); return false;" class="back-button">
+            ← Terug naar DPP
+        </a>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 20px;">VCs laden van blockchain...</p>
+        </div>
+
+        <div id="vc-container" style="display: none;"></div>
+    </div>
+
+    <script>
+        const RPC_URL = "http://localhost:8545";
+        const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+
+        const DPP_ABI = [
+            "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds)",
+            "function getSubjectVCs(address subject) view returns (uint256[])",
+            "function getCredential(uint256 vcId) view returns (uint256 id, address issuer, address subject, string credentialType, string data, uint256 issuedAt, uint256 expiresAt, bool revoked)"
+        ];
+
+        let provider, contract;
+
+        async function init() {
+            try {
+                provider = new ethers.providers.JsonRpcProvider(RPC_URL);
+                contract = new ethers.Contract(CONTRACT_ADDRESS, DPP_ABI, provider);
+                
+                // Get batch ID from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const batchId = urlParams.get('batch');
+                
+                if (!batchId) {
+                    document.getElementById('loading').innerHTML = '<div class="no-vcs"><h2>❌ Geen batch opgegeven</h2><p>Voeg ?batch=1 toe aan de URL</p></div>';
+                    document.getElementById('loading').style.display = 'block';
+                    return;
+                }
+                
+                document.getElementById('batch-info').textContent = `Certificaten voor Batch #${batchId}`;
+                
+                // Get batch info
+                const batch = await contract.getBatch(batchId);
+                const farmerAddress = batch.farmer;
+                
+                // Get all VCs for this farmer
+                const vcIds = await contract.getSubjectVCs(farmerAddress);
+                
+                if (vcIds.length === 0) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('vc-container').innerHTML = `
+                        <div class="no-vcs">
+                            <h2>💡 Geen Verifiable Credentials</h2>
+                            <p>Deze boer heeft nog geen VCs ontvangen. Een certificeerder kan VCs toewijzen via de VC Aanvraag module.</p>
+                        </div>
+                    `;
+                    document.getElementById('vc-container').style.display = 'block';
+                    return;
+                }
+                
+                // Load all VCs
+                let html = '';
+                for (const vcId of vcIds) {
+                    const vc = await contract.getCredential(vcId);
+                    
+                    // Parse data for real expiry date
+                    let realExpiryDate = null;
+                    let isExpired = false;
+                    let vcDataObj = {};
+                    
+                    try {
+                        vcDataObj = JSON.parse(vc.data);
+                        if (vcDataObj.geldigTot) {
+                            realExpiryDate = new Date(vcDataObj.geldigTot);
+                            isExpired = Date.now() > realExpiryDate.getTime();
+                        } else {
+                            isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                            realExpiryDate = new Date(Number(vc.expiresAt) * 1000);
+                        }
+                    } catch (e) {
+                        isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                        realExpiryDate = new Date(Number(vc.expiresAt) * 1000);
+                    }
+                    
+                    const isRevoked = vc.revoked;
+                    let statusClass = 'valid';
+                    let statusText = '✅ Geldig';
+                    
+                    if (isRevoked) {
+                        statusClass = 'revoked';
+                        statusText = '❌ Ingetrokken';
+                    } else if (isExpired) {
+                        statusClass = 'expired';
+                        statusText = '⏰ Verlopen';
+                    }
+                    
+                    const issuedDate = new Date(Number(vc.issuedAt) * 1000);
+                    
+                    html += `
+                        <div class="vc-card">
+                            <div class="vc-header">
+                                <div class="vc-title">🎓 VC #${vcId.toString()}</div>
+                                <div class="vc-status ${statusClass}">${statusText}</div>
+                            </div>
+                            
+                            <div class="vc-detail-row">
+                                <div class="vc-detail-label">Type:</div>
+                                <div class="vc-detail-value">${vc.credentialType}</div>
+                            </div>
+                            
+                            <div class="vc-detail-row">
+                                <div class="vc-detail-label">Uitgever:</div>
+                                <div class="vc-detail-value" style="font-family: monospace; font-size: 13px;">${vc.issuer}</div>
+                            </div>
+                            
+                            <div class="vc-detail-row">
+                                <div class="vc-detail-label">Subject (Boer):</div>
+                                <div class="vc-detail-value" style="font-family: monospace; font-size: 13px;">${vc.subject}</div>
+                            </div>
+                            
+                            <div class="vc-detail-row">
+                                <div class="vc-detail-label">Uitgegeven op:</div>
+                                <div class="vc-detail-value">${issuedDate.toLocaleDateString('nl-NL')} om ${issuedDate.toLocaleTimeString('nl-NL')}</div>
+                            </div>
+                            
+                            <div class="vc-detail-row">
+                                <div class="vc-detail-label">Geldig tot:</div>
+                                <div class="vc-detail-value">${realExpiryDate.toLocaleDateString('nl-NL')}</div>
+                            </div>
+                            
+                            <div class="vc-data-box">
+                                <div class="vc-data-title">📄 Certificaat Details:</div>
+                                ${Object.entries(vcDataObj).map(([key, value]) => `
+                                    <div class="vc-detail-row" style="border: none; padding: 8px 0;">
+                                        <div class="vc-detail-label">${key}:</div>
+                                        <div class="vc-detail-value">${value}</div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('vc-container').innerHTML = html;
+                document.getElementById('vc-container').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="no-vcs">
+                        <h2>❌ Fout bij laden VCs</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

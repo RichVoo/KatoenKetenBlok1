@@ -437,6 +437,118 @@
             <button onclick="loginAsCertifier()" style="background: #f59e0b;">🔓 Inloggen als Certificeerder</button>
             <div id="certifier-status" style="margin-top: 15px;"></div>
         </div>
+
+        <!-- Batch Verificatie Sectie -->
+        <div class="content-box" id="batch-verification-box" style="margin-bottom: 20px; background: #dbeafe; border: 2px solid #3b82f6; display: none;">
+            <h2 style="margin-bottom: 15px;">✅ Batch Verificatie</h2>
+            <div class="info-box info">
+                <strong>ℹ️ Certificeer batches op de blockchain</strong><br>
+                Als certificeerder kun je hier batches goedkeuren. Wanneer je een batch certificeert:
+                <ul style="margin-top: 10px; margin-left: 20px;">
+                    <li>✅ Batch status wordt gewijzigd naar "Verified"</li>
+                    <li>� Systeem controleert of boer geldig certificaat heeft</li>
+                    <li>💰 <strong>Inkoopcoöperatie kan daarna boer uitbetalen</strong></li>
+                    <li>📊 Betaling gebaseerd op kwaliteit: 10 USDT/kg basis, +15% (70-89), +30% (90-100)</li>
+                </ul>
+            </div>
+            
+            <div class="form-group">
+                <label>Batch ID om te Verifiëren</label>
+                <input type="number" id="batch-to-verify" placeholder="1" min="1">
+                <small style="color: #666; display: block; margin-top: 4px;">Voer het ID in van de batch die je wilt certificeren</small>
+            </div>
+            
+            <button onclick="loadBatchDetails()" style="background: #3b82f6;">📋 Batch Details Ophalen</button>
+            
+            <div id="batch-details-section" style="display: none; margin-top: 20px;">
+                <h3 style="margin-bottom: 15px; color: #1e40af;">Batch Informatie:</h3>
+                <div class="certificate-preview" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border: 3px solid #3b82f6;">
+                    <div class="certificate-body">
+                        <div class="certificate-field">
+                            <strong>Batch ID:</strong> <span id="verify-batch-id"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Boer:</strong> <span id="verify-farmer" style="font-size: 11px; word-break: break-all;"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Gewicht:</strong> <span id="verify-weight"></span> kg
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Initiële Kwaliteit:</strong> <span id="verify-quality"></span>/100
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Oorsprong:</strong> <span id="verify-origin"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Aangemaakt:</strong> <span id="verify-created"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Status:</strong> <span id="verify-status" style="font-weight: bold;"></span>
+                        </div>
+                        <div class="certificate-field">
+                            <strong>Huidige Eigenaar:</strong> <span id="verify-owner" style="font-size: 11px; word-break: break-all;"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 style="margin-top: 20px; margin-bottom: 15px; color: #1e40af;">Verificatie Checklist:</h3>
+                <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #3b82f6;">
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-batch-farmer" style="width: auto; margin-right: 10px;">
+                            <span>Boer identiteit geverifieerd</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-batch-weight" style="width: auto; margin-right: 10px;">
+                            <span>Gewicht en kwaliteit gecontroleerd</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-batch-origin" style="width: auto; margin-right: 10px;">
+                            <span>Oorsprong en locatie geverifieerd</span>
+                        </label>
+                    </div>
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: flex; align-items: center; cursor: pointer;">
+                            <input type="checkbox" id="check-batch-organic" style="width: auto; margin-right: 10px;">
+                            <span>Biologische teelt normen nageleefd</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="batch-verify-result" style="margin-top: 15px;"></div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <button onclick="verifyBatchOnBlockchain(true)" id="verify-batch-btn" style="background: #10b981;">
+                        ✅ Batch Goedkeuren
+                    </button>
+                    <button onclick="verifyBatchOnBlockchain(false)" id="reject-batch-btn" style="background: #ef4444;">
+                        ❌ Batch Afkeuren
+                    </button>
+                </div>
+                
+                <div style="margin-top: 15px; padding: 15px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <strong style="color: #065f46;">💡 Wat gebeurt er bij goedkeuring?</strong>
+                    <ol style="margin-top: 10px; margin-left: 20px; color: #047857; font-size: 13px;">
+                        <li>✅ Batch status → Verified</li>
+                        <li>💰 Escrow wordt <strong>automatisch</strong> uitbetaald aan boer</li>
+                        <li>🎉 Transactie compleet!</li>
+                    </ol>
+                </div>
+                
+                <div style="margin-top: 10px; padding: 15px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                    <strong style="color: #92400e;">⚠️ Wat gebeurt er bij afkeuring?</strong>
+                    <ol style="margin-top: 10px; margin-left: 20px; color: #92400e; font-size: 13px;">
+                        <li>❌ Batch status → Rejected</li>
+                        <li>💸 Escrow wordt <strong>automatisch</strong> teruggestort naar koper</li>
+                        <li>🔄 Batch wordt weer op markt geplaatst</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
         
         <div class="content-box">
             <!-- Step 1: Certificaat Aanvraag -->
@@ -751,6 +863,9 @@
             // Hide login box
             document.getElementById('certifier-login-box').style.display = 'none';
             
+            // Show batch verification box
+            document.getElementById('batch-verification-box').style.display = 'block';
+            
         } catch (error) {
             console.error('Login fout:', error);
             statusDiv.innerHTML = `<div class="info-box warning">❌ Fout: ${error.message}</div>`;
@@ -773,6 +888,8 @@
         "function issueCredential(address subject, string memory credentialType, string memory data, uint256 validityDays) external",
         "function hasRole(bytes32 role, address account) external view returns (bool)",
         "function dids(address) external view returns (string identifier, string publicKey, string didType, uint256 registered, bool active)",
+        "function getCredential(uint256 vcId) external view returns (uint256 id, address issuer, address subject, string credentialType, string data, uint256 issuedAt, uint256 expiresAt, bool revoked)",
+        "function getSubjectVCs(address subject) external view returns (uint256[])",
         "event VCIssued(uint256 indexed vcId, address indexed issuer, address indexed subject, string credentialType)"
     ];
     
@@ -1172,26 +1289,140 @@
         }
 
         // VC Viewer & Search functions
-        function renderIssuedVCs(list) {
+        async function renderIssuedVCs(list) {
             const container = document.getElementById('vc-results');
-            const arr = list || issuedVCs;
-            if (!arr || arr.length === 0) {
+            
+            // If no list provided, fetch from blockchain
+            if (!list) {
+                container.innerHTML = '<div class="loading"><div class="spinner"></div><p>VCs laden van blockchain...</p></div>';
+                
+                try {
+                    // Create read-only provider for viewing VCs
+                    const readProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+                    const contractAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+                    const readContract = new ethers.Contract(contractAddress, CONTRACT_ABI, readProvider);
+                    
+                    const activeVCs = [];
+                    
+                    // Try to fetch VCs starting from ID 1
+                    // We'll try up to 100 VCs (should be enough for demo)
+                    let consecutiveFailures = 0;
+                    const maxConsecutiveFailures = 5; // Stop after 5 consecutive failures
+                    
+                    for (let i = 1; i <= 100 && consecutiveFailures < maxConsecutiveFailures; i++) {
+                        try {
+                            const vc = await readContract.getCredential(i);
+                            
+                            // Check if VC actually exists (issuer should not be zero address)
+                            if (vc.issuer === '0x0000000000000000000000000000000000000000' || vc.id === 0) {
+                                consecutiveFailures++;
+                                console.warn('VC ID', i, 'does not exist (zero address or ID)');
+                                continue;
+                            }
+                            
+                            // Reset failure counter on success
+                            consecutiveFailures = 0;
+                            
+                            // Parse VC data
+                            let vcDataObj = {};
+                            try {
+                                vcDataObj = JSON.parse(vc.data);
+                            } catch (e) {
+                                console.warn('Could not parse VC data for ID', i);
+                            }
+                            
+                            // Check if VC is expired
+                            let isExpired = false;
+                            if (vcDataObj.geldigTot) {
+                                const realExpiryDate = new Date(vcDataObj.geldigTot);
+                                isExpired = Date.now() > realExpiryDate.getTime();
+                            } else {
+                                isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                            }
+                            
+                            activeVCs.push({
+                                id: `urn:blockchain:${i}`,
+                                blockchainId: i,
+                                holder: vc.subject,
+                                issuer: vc.issuer,
+                                credentialType: vc.credentialType,
+                                issuedAt: new Date(Number(vc.issuedAt) * 1000).toLocaleString('nl-NL'),
+                                expiresAt: vcDataObj.geldigTot ? new Date(vcDataObj.geldigTot).toLocaleString('nl-NL') : new Date(Number(vc.expiresAt) * 1000).toLocaleString('nl-NL'),
+                                revoked: vc.revoked,
+                                expired: isExpired,
+                                data: vcDataObj,
+                                vc: {
+                                    '@context': ['https://www.w3.org/2018/credentials/v1'],
+                                    type: ['VerifiableCredential', vc.credentialType],
+                                    issuer: vc.issuer,
+                                    issuanceDate: new Date(Number(vc.issuedAt) * 1000).toISOString(),
+                                    credentialSubject: {
+                                        id: vc.subject,
+                                        ...vcDataObj
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            consecutiveFailures++;
+                            console.warn('Could not fetch VC with ID', i, '- consecutive failures:', consecutiveFailures);
+                        }
+                    }
+                    
+                    list = activeVCs;
+                    
+                    if (activeVCs.length === 0) {
+                        container.innerHTML = '<div class="info-box info">Geen VCs gevonden op blockchain. Voeg eerst VCs toe via de certificaat aanvraag.</div>';
+                        return;
+                    }
+                    
+                } catch (error) {
+                    console.error('Error fetching VCs:', error);
+                    container.innerHTML = `<div class="info-box warning">Fout bij laden van VCs: ${error.message}</div>`;
+                    return;
+                }
+            }
+            
+            if (!list || list.length === 0) {
                 container.innerHTML = '<div class="info-box info">Geen uitgegeven VCs gevonden.</div>';
                 return;
             }
+            
             container.innerHTML = '';
-            arr.slice().reverse().forEach(v => {
+            list.slice().reverse().forEach(v => {
                 const box = document.createElement('div');
                 box.className = 'certificate-preview';
-                box.style.background = 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)';
-                const blockchainInfo = v.blockchainId ? `<br><strong>Blockchain ID:</strong> ${v.blockchainId}<br><strong>TX Hash:</strong> ${v.txHash}` : '';
+                
+                let statusBadge = '';
+                let bgColor = 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)';
+                
+                if (v.revoked) {
+                    statusBadge = '<span style="background: #fee2e2; color: #991b1b; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">❌ Ingetrokken</span>';
+                    bgColor = 'linear-gradient(135deg, #fff 0%, #fee2e2 100%)';
+                } else if (v.expired) {
+                    statusBadge = '<span style="background: #fed7aa; color: #92400e; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">⏰ Verlopen</span>';
+                    bgColor = 'linear-gradient(135deg, #fff 0%, #fed7aa 100%)';
+                } else {
+                    statusBadge = '<span style="background: #d1fae5; color: #065f46; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;">✅ Geldig</span>';
+                    bgColor = 'linear-gradient(135deg, #fff 0%, #d1fae5 100%)';
+                }
+                
+                box.style.background = bgColor;
+                
                 box.innerHTML = `
-                    <div class="certificate-header">
-                        <div class="certificate-title">VC ID: ${v.id}</div>
-                        <div class="certificate-subtitle">Houder: ${v.holder} ${v.urn?(' | URN: '+v.urn):''}${blockchainInfo}</div>
+                    <div style="margin-bottom: 15px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <div class="certificate-title">${v.credentialType || 'Verifiable Credential'}</div>
+                            <div>${statusBadge}</div>
+                        </div>
+                        <div class="certificate-subtitle" style="text-align: left;">
+                            <strong>VC ID:</strong> ${v.id}<br>
+                            <strong>Houder:</strong> ${v.holder}<br>
+                            <strong>Blockchain ID:</strong> ${v.blockchainId}<br>
+                            <strong>Uitgiftedatum:</strong> ${v.issuedAt}<br>
+                            <strong>Geldig tot:</strong> ${v.expiresAt}
+                        </div>
                     </div>
-                    ${v.blockchainId ? `<button onclick="verifyOnBlockchain(${v.blockchainId})" style="margin:10px 0;">🔍 Verifieer op Blockchain</button>` : ''}
-                    <details>
+                    <details style="margin-top: 15px;">
                         <summary>Bekijk VC (JSON)</summary>
                         <pre>${JSON.stringify(v.vc, null, 2)}</pre>
                     </details>
@@ -1200,66 +1431,131 @@
             });
         }
 
-        async function verifyOnBlockchain(credentialId) {
-            const connected = await connectWallet();
-            if (!connected) return;
-            
-            try {
-                console.log('Verifiëren credential ID:', credentialId);
-                const result = await contract.verifyCredential(credentialId);
-                
-                const info = `
-                    <div class="info-box ${result.valid ? 'success' : 'warning'}">
-                        <h3>Blockchain Verificatie Resultaat</h3>
-                        <p><strong>Status:</strong> ${result.valid ? '✅ Geldig' : '❌ Ongeldig/Ingetrokken'}</p>
-                        <p><strong>Uitgever:</strong> ${result.issuer}</p>
-                        <p><strong>Houder:</strong> ${result.subject}</p>
-                        <p><strong>Data:</strong></p>
-                        <pre style="background: white; color: #333; padding: 10px; border-radius: 4px;">${JSON.stringify(JSON.parse(result.data), null, 2)}</pre>
-                    </div>
-                `;
-                
-                const container = document.getElementById('vc-results');
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = info;
-                container.insertBefore(tempDiv, container.firstChild);
-                
-                setTimeout(() => tempDiv.remove(), 15000); // Remove after 15 seconds
-                
-            } catch (error) {
-                console.error('Verificatie fout:', error);
-                alert('Fout bij verificatie op blockchain: ' + error.message);
-            }
-        }
-
         async function combinedSearch() {
             const searchValue = document.getElementById('vc-search-input').value.trim();
             if (!searchValue) {
-                renderIssuedVCs();
+                await renderIssuedVCs();
                 return;
             }
 
-            // Check of het een blockchain adres is (begint met 0x)
-            if (searchValue.startsWith('0x')) {
-                const results = issuedVCs.filter(v => {
-                    if (!v) return false;
-                    return v.holder && v.holder.toLowerCase() === searchValue.toLowerCase();
-                });
-                const container = document.getElementById('vc-results');
-                if (results.length === 0) {
-                    container.innerHTML = '<div class="info-box warning">Geen certificaten gevonden voor adres: ' + searchValue + '</div>';
-                    return;
+            const container = document.getElementById('vc-results');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><p>Zoeken op blockchain...</p></div>';
+            
+            try {
+                // Create read-only provider for searching
+                const readProvider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+                const contractAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+                const readContract = new ethers.Contract(contractAddress, CONTRACT_ABI, readProvider);
+
+                // Check of het een blockchain adres is (begint met 0x)
+                if (searchValue.startsWith('0x')) {
+                    // Get VCs for this address
+                    const vcIds = await readContract.getSubjectVCs(searchValue);
+                    
+                    if (vcIds.length === 0) {
+                        container.innerHTML = `<div class="info-box warning">Geen certificaten gevonden voor adres: ${searchValue}</div>`;
+                        return;
+                    }
+                    
+                    const results = [];
+                    for (const vcId of vcIds) {
+                        const vc = await readContract.getCredential(vcId);
+                        
+                        let vcDataObj = {};
+                        try {
+                            vcDataObj = JSON.parse(vc.data);
+                        } catch (e) {}
+                        
+                        let isExpired = false;
+                        if (vcDataObj.geldigTot) {
+                            const realExpiryDate = new Date(vcDataObj.geldigTot);
+                            isExpired = Date.now() > realExpiryDate.getTime();
+                        } else {
+                            isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                        }
+                        
+                        results.push({
+                            id: `urn:blockchain:${vcId}`,
+                            blockchainId: Number(vcId),
+                            holder: vc.subject,
+                            issuer: vc.issuer,
+                            credentialType: vc.credentialType,
+                            issuedAt: new Date(Number(vc.issuedAt) * 1000).toLocaleString('nl-NL'),
+                            expiresAt: vcDataObj.geldigTot ? new Date(vcDataObj.geldigTot).toLocaleString('nl-NL') : new Date(Number(vc.expiresAt) * 1000).toLocaleString('nl-NL'),
+                            revoked: vc.revoked,
+                            expired: isExpired,
+                            data: vcDataObj,
+                            vc: {
+                                '@context': ['https://www.w3.org/2018/credentials/v1'],
+                                type: ['VerifiableCredential', vc.credentialType],
+                                issuer: vc.issuer,
+                                issuanceDate: new Date(Number(vc.issuedAt) * 1000).toISOString(),
+                                credentialSubject: {
+                                    id: vc.subject,
+                                    ...vcDataObj
+                                }
+                            }
+                        });
+                    }
+                    
+                    await renderIssuedVCs(results);
                 }
-                renderIssuedVCs(results);
-            }
-            // Anders behandelen we het als een certificaat ID
-            else {
-                const id = parseInt(searchValue);
-                if (isNaN(id)) {
-                    alert('Voer een geldig blockchain adres (0x...) of certificaatnummer in');
-                    return;
+                // Anders behandelen we het als een certificaat ID
+                else {
+                    const id = parseInt(searchValue);
+                    if (isNaN(id)) {
+                        container.innerHTML = '<div class="info-box warning">Voer een geldig blockchain adres (0x...) of certificaatnummer in</div>';
+                        return;
+                    }
+                    
+                    try {
+                        const vc = await readContract.getCredential(id);
+                        
+                        let vcDataObj = {};
+                        try {
+                            vcDataObj = JSON.parse(vc.data);
+                        } catch (e) {}
+                        
+                        let isExpired = false;
+                        if (vcDataObj.geldigTot) {
+                            const realExpiryDate = new Date(vcDataObj.geldigTot);
+                            isExpired = Date.now() > realExpiryDate.getTime();
+                        } else {
+                            isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                        }
+                        
+                        const result = [{
+                            id: `urn:blockchain:${id}`,
+                            blockchainId: id,
+                            holder: vc.subject,
+                            issuer: vc.issuer,
+                            credentialType: vc.credentialType,
+                            issuedAt: new Date(Number(vc.issuedAt) * 1000).toLocaleString('nl-NL'),
+                            expiresAt: vcDataObj.geldigTot ? new Date(vcDataObj.geldigTot).toLocaleString('nl-NL') : new Date(Number(vc.expiresAt) * 1000).toLocaleString('nl-NL'),
+                            revoked: vc.revoked,
+                            expired: isExpired,
+                            data: vcDataObj,
+                            vc: {
+                                '@context': ['https://www.w3.org/2018/credentials/v1'],
+                                type: ['VerifiableCredential', vc.credentialType],
+                                issuer: vc.issuer,
+                                issuanceDate: new Date(Number(vc.issuedAt) * 1000).toISOString(),
+                                credentialSubject: {
+                                    id: vc.subject,
+                                    ...vcDataObj
+                                }
+                            }
+                        }];
+                        
+                        await renderIssuedVCs(result);
+                        
+                    } catch (error) {
+                        container.innerHTML = `<div class="info-box warning">VC met ID ${id} niet gevonden op blockchain. Mogelijk is het contract opnieuw gedeployed.</div>`;
+                    }
                 }
-                await verifyOnBlockchain(id);
+            } catch (error) {
+                console.error('Zoekfout:', error);
+                container.innerHTML = `<div class="info-box warning">Fout bij zoeken: ${error.message}</div>`;
             }
         }
 
@@ -1276,6 +1572,286 @@
             URL.revokeObjectURL(url);
         }
 
+        // ========== Batch Verificatie Functies ==========
+        
+        async function loadBatchDetails() {
+            const batchId = document.getElementById('batch-to-verify').value;
+            const detailsSection = document.getElementById('batch-details-section');
+            const resultDiv = document.getElementById('batch-verify-result');
+            
+            if (!batchId) {
+                resultDiv.innerHTML = '<div class="info-box warning">⚠️ Voer een Batch ID in</div>';
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Batch gegevens ophalen...</div>';
+                
+                // Connect to contract
+                const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+                const contractAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+                
+                const BATCH_ABI = [
+                    "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)"
+                ];
+                
+                const contract = new ethers.Contract(contractAddress, BATCH_ABI, provider);
+                
+                // Fetch batch data
+                const batch = await contract.getBatch(batchId);
+                
+                if (Number(batch.id) === 0) {
+                    resultDiv.innerHTML = '<div class="info-box warning">❌ Batch niet gevonden</div>';
+                    detailsSection.style.display = 'none';
+                    return;
+                }
+                
+                // Status mapping - Updated with new statuses
+                const statusNames = ['Created', 'Reserved', 'Verified', 'Rejected', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
+                const statusName = statusNames[batch.status] || 'Onbekend';
+                
+                // Calculate escrow amount if reserved
+                let escrowInfo = '';
+                if (batch.status === 1 && Number(batch.escrowAmount) > 0) {
+                    const escrowAmount = ethers.utils.formatUnits(batch.escrowAmount, 6);
+                    escrowInfo = `<br><strong>💰 Escrow:</strong> ${escrowAmount} USDT<br><strong>🛒 Gekocht door:</strong> ${batch.buyer}`;
+                }
+                
+                // Fill in batch details
+                document.getElementById('verify-batch-id').textContent = batch.id.toString();
+                document.getElementById('verify-farmer').textContent = batch.farmer;
+                document.getElementById('verify-weight').textContent = batch.weight.toString();
+                document.getElementById('verify-quality').textContent = batch.quality.toString();
+                document.getElementById('verify-origin').textContent = batch.origin;
+                document.getElementById('verify-created').textContent = new Date(Number(batch.createdAt) * 1000).toLocaleString('nl-NL');
+                document.getElementById('verify-status').textContent = statusName;
+                
+                // Color based on status
+                if (batch.status === 1) {
+                    document.getElementById('verify-status').style.color = '#3b82f6'; // Reserved - Blue
+                } else if (batch.status === 2) {
+                    document.getElementById('verify-status').style.color = '#10b981'; // Verified - Green
+                } else if (batch.status === 3) {
+                    document.getElementById('verify-status').style.color = '#ef4444'; // Rejected - Red
+                } else {
+                    document.getElementById('verify-status').style.color = '#f59e0b'; // Other - Orange
+                }
+                
+                document.getElementById('verify-owner').textContent = batch.currentOwner;
+                
+                // Show details section
+                detailsSection.style.display = 'block';
+                resultDiv.innerHTML = escrowInfo ? `<div class="info-box info">${escrowInfo}</div>` : '';
+                
+                // Check if can be certified
+                if (batch.status === 1) {
+                    // Reserved - can be certified
+                    document.getElementById('verify-batch-btn').disabled = false;
+                    document.getElementById('reject-batch-btn').disabled = false;
+                    document.getElementById('verify-batch-btn').style.opacity = '1';
+                    document.getElementById('reject-batch-btn').style.opacity = '1';
+                    document.getElementById('verify-batch-btn').style.cursor = 'pointer';
+                    document.getElementById('reject-batch-btn').style.cursor = 'pointer';
+                } else if (batch.status === 2) {
+                    // Already verified
+                    resultDiv.innerHTML = '<div class="info-box success">✅ Deze batch is al goedgekeurd en betaald</div>';
+                    document.getElementById('verify-batch-btn').disabled = true;
+                    document.getElementById('reject-batch-btn').disabled = true;
+                    document.getElementById('verify-batch-btn').style.opacity = '0.5';
+                    document.getElementById('reject-batch-btn').style.opacity = '0.5';
+                    document.getElementById('verify-batch-btn').style.cursor = 'not-allowed';
+                    document.getElementById('reject-batch-btn').style.cursor = 'not-allowed';
+                } else if (batch.status === 3) {
+                    // Rejected
+                    resultDiv.innerHTML = '<div class="info-box warning">❌ Deze batch is al afgekeurd en terug op de markt</div>';
+                    document.getElementById('verify-batch-btn').disabled = true;
+                    document.getElementById('reject-batch-btn').disabled = true;
+                    document.getElementById('verify-batch-btn').style.opacity = '0.5';
+                    document.getElementById('reject-batch-btn').style.opacity = '0.5';
+                    document.getElementById('verify-batch-btn').style.cursor = 'not-allowed';
+                    document.getElementById('reject-batch-btn').style.cursor = 'not-allowed';
+                } else {
+                    // Not purchased yet
+                    resultDiv.innerHTML = '<div class="info-box warning">⚠️ Deze batch moet eerst gekocht worden door een inkoopcoöperatie voordat je deze kunt certificeren</div>';
+                    document.getElementById('verify-batch-btn').disabled = true;
+                    document.getElementById('reject-batch-btn').disabled = true;
+                    document.getElementById('verify-batch-btn').style.opacity = '0.5';
+                    document.getElementById('reject-batch-btn').style.opacity = '0.5';
+                    document.getElementById('verify-batch-btn').style.cursor = 'not-allowed';
+                    document.getElementById('reject-batch-btn').style.cursor = 'not-allowed';
+                    document.getElementById('verify-batch-btn').style.opacity = '1';
+                    document.getElementById('verify-batch-btn').style.cursor = 'pointer';
+                }
+                
+            } catch (error) {
+                console.error('Fout bij ophalen batch:', error);
+                resultDiv.innerHTML = `<div class="info-box warning">❌ Fout: ${error.message}</div>`;
+                detailsSection.style.display = 'none';
+            }
+        }
+        
+        async function verifyBatchOnBlockchain(approved = true) {
+            const batchId = document.getElementById('batch-to-verify').value;
+            const resultDiv = document.getElementById('batch-verify-result');
+            
+            // Check all checkboxes only for approval
+            if (approved) {
+                const checkFarmer = document.getElementById('check-batch-farmer').checked;
+                const checkWeight = document.getElementById('check-batch-weight').checked;
+                const checkOrigin = document.getElementById('check-batch-origin').checked;
+                const checkOrganic = document.getElementById('check-batch-organic').checked;
+                
+                if (!checkFarmer || !checkWeight || !checkOrigin || !checkOrganic) {
+                    resultDiv.innerHTML = '<div class="info-box warning">⚠️ Vink alle verificatie items aan voordat je de batch goedkeurt</div>';
+                    return;
+                }
+            }
+            
+            const action = approved ? 'goedkeuren' : 'afkeuren';
+            
+            if (!approved && !confirm(`Weet je zeker dat je batch #${batchId} wilt afkeuren? De betaling wordt teruggestort naar de koper.`)) {
+                return;
+            }
+            
+            try {
+                resultDiv.innerHTML = `<div class="loading"><div class="spinner"></div>Batch ${action} op blockchain...</div>`;
+                
+                // Get certifier credentials
+                const certPrivateKey = localStorage.getItem('certifier_private_key');
+                if (!certPrivateKey) {
+                    resultDiv.innerHTML = '<div class="info-box warning">❌ Geen certificeerder login gevonden. Log eerst in als certificeerder.</div>';
+                    return;
+                }
+                
+                // Connect to contract with signer
+                const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
+                const signer = new ethers.Wallet(certPrivateKey, provider);
+                const contractAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+                
+                const BATCH_ABI = [
+                    "function certifyBatch(uint256 batchId, bool approved) external",
+                    "function hasRole(bytes32 role, address account) external view returns (bool)"
+                ];
+                
+                const contract = new ethers.Contract(contractAddress, BATCH_ABI, signer);
+                
+                // Verify certifier role
+                const certifierRole = ethers.utils.id('CERTIFIER_ROLE');
+                const hasCertifierRole = await contract.hasRole(certifierRole, await signer.getAddress());
+                
+                if (!hasCertifierRole) {
+                    resultDiv.innerHTML = '<div class="info-box warning">❌ Je account heeft geen CERTIFIER_ROLE. Gebruik een certificeerder account.</div>';
+                    return;
+                }
+                
+                // Certify batch (approved or rejected)
+                const tx = await contract.certifyBatch(batchId, approved);
+                
+                resultDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Wachten op transactie bevestiging...</div>';
+                
+                const receipt = await tx.wait();
+                
+                // Get batch info for notification
+                let notification = '';
+                if (approved) {
+                    try {
+                        const PAYMENT_ABI = [
+                            "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)"
+                        ];
+                        
+                        const paymentContract = new ethers.Contract(contractAddress, PAYMENT_ABI, provider);
+                        const batch = await paymentContract.getBatch(batchId);
+                        const escrowAmount = Number(ethers.utils.formatUnits(batch.escrowAmount, 6)).toFixed(2);
+                        
+                        notification = `
+                            <div class="info-box success" style="margin-top: 15px; background: #d1fae5; border: 2px solid #10b981;">
+                                <strong style="color: #065f46;">💰 Escrow Uitbetaald aan Boer!</strong><br><br>
+                                De batch is goedgekeurd en het escrow bedrag is automatisch naar de boer overgemaakt.<br><br>
+                                <strong>Escrow Bedrag:</strong> <span style="color: #10b981; font-size: 16px;">${escrowAmount} USDT</span><br>
+                                <strong>Status:</strong> Verified ✅<br><br>
+                                <em style="font-size: 13px; color: #047857;">
+                                    ✅ De boer heeft de betaling ontvangen!
+                                </em>
+                            </div>
+                        `;
+                    } catch (error) {
+                        console.log('Kon escrow info niet ophalen:', error);
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <div class="info-box success">
+                            <div class="big-icon">✅</div>
+                            <strong style="font-size: 18px;">Batch Goedgekeurd!</strong>
+                            <div style="margin-top: 15px; font-size: 14px;">
+                                <strong>Batch ID:</strong> ${batchId}<br>
+                                <strong>Status:</strong> Verified (Goedgekeurd)<br>
+                                <strong>Escrow:</strong> Automatisch uitbetaald aan boer<br>
+                                <strong>Transaction Hash:</strong> <span style="font-size: 11px; word-break: break-all;">${receipt.transactionHash}</span><br>
+                                <strong>Block:</strong> ${receipt.blockNumber}
+                            </div>
+                        </div>
+                        ${notification}
+                    `;
+                } else {
+                    try {
+                        const PAYMENT_ABI = [
+                            "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)"
+                        ];
+                        
+                        const paymentContract = new ethers.Contract(contractAddress, PAYMENT_ABI, provider);
+                        const batch = await paymentContract.getBatch(batchId);
+                        const escrowAmount = Number(ethers.utils.formatUnits(batch.escrowAmount, 6)).toFixed(2);
+                        
+                        notification = `
+                            <div class="info-box warning" style="margin-top: 15px; background: #fef3c7; border: 2px solid #f59e0b;">
+                                <strong style="color: #92400e;">� Escrow Teruggestort!</strong><br><br>
+                                De batch is afgekeurd en het escrow bedrag is teruggestort naar de koper.<br><br>
+                                <strong>Teruggestort:</strong> <span style="color: #f59e0b; font-size: 16px;">${escrowAmount} USDT</span><br>
+                                <strong>Status:</strong> Rejected (Afgekeurd) ❌<br>
+                                <strong>Batch:</strong> Terug op markt geplaatst<br><br>
+                                <em style="font-size: 13px; color: #92400e;">
+                                    De batch is weer beschikbaar op de marktplaats voor nieuwe kopers.
+                                </em>
+                            </div>
+                        `;
+                    } catch (error) {
+                        console.log('Kon escrow info niet ophalen:', error);
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <div class="info-box warning">
+                            <div class="big-icon">❌</div>
+                            <strong style="font-size: 18px;">Batch Afgekeurd</strong>
+                            <div style="margin-top: 15px; font-size: 14px;">
+                                <strong>Batch ID:</strong> ${batchId}<br>
+                                <strong>Status:</strong> Rejected (Afgekeurd)<br>
+                                <strong>Escrow:</strong> Teruggestort naar koper<br>
+                                <strong>Markt:</strong> Batch terug op markt geplaatst<br>
+                                <strong>Transaction Hash:</strong> <span style="font-size: 11px; word-break: break-all;">${receipt.transactionHash}</span><br>
+                                <strong>Block:</strong> ${receipt.blockNumber}
+                            </div>
+                        </div>
+                        ${notification}
+                    `;
+                }
+                
+                // Disable button
+                document.getElementById('verify-batch-btn').disabled = true;
+                document.getElementById('verify-batch-btn').style.opacity = '0.5';
+                document.getElementById('verify-batch-btn').style.cursor = 'not-allowed';
+                
+                // Reset checkboxes
+                document.getElementById('check-batch-farmer').checked = false;
+                document.getElementById('check-batch-weight').checked = false;
+                document.getElementById('check-batch-origin').checked = false;
+                document.getElementById('check-batch-organic').checked = false;
+                
+            } catch (error) {
+                console.error('Fout bij batch verificatie:', error);
+                resultDiv.innerHTML = `<div class="info-box warning">❌ Fout: ${error.message}</div>`;
+            }
+        }
+
         // Set default date (1 year from now)
         window.onload = function() {
             const dateInput = document.getElementById('geldig-tot');
@@ -1290,6 +1866,8 @@
                 document.getElementById('certifier-status').innerHTML = 
                     `<div class="info-box success">✅ Ingelogd als: ${certAddress}</div>`;
                 document.getElementById('certifier-login-box').style.display = 'none';
+                // Show batch verification box
+                document.getElementById('batch-verification-box').style.display = 'block';
             }
             
             // render any existing issued VCs in the viewer

@@ -31,7 +31,11 @@ const DPP_ABI = [
     "function addBatchIoTData(uint256 batchId, int256[] temperatures, uint256[] humidities, string[] locations)",
     "function payQualityBonus(uint256 batchId)",
     "function updateBatchStatus(uint256 batchId, uint8 newStatus)",
-    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds)",
+    "function purchaseBatch(uint256 batchId)",
+    "function certifyBatch(uint256 batchId, bool approved)",
+    "function getMarketBatches() view returns (uint256[])",
+    "function getReservedBatches() view returns (uint256[])",
+    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)",
     "function getFarmerBatches(address) view returns (uint256[])",
     "function getIoTData(uint256 batchId, uint256 index) view returns (int256 temperature, uint256 humidity, string location, uint256 timestamp, address recorder)",
     "function getIoTDataCount(uint256 batchId) view returns (uint256)",
@@ -43,7 +47,11 @@ const DPP_ABI = [
     "event DIDRegistered(address indexed controller, string identifier, string didType)",
     "event VCIssued(uint256 indexed vcId, address indexed issuer, address indexed subject, string credentialType)",
     "event BatchCreated(uint256 indexed batchId, address indexed farmer, uint256 weight, uint256 quality)",
-    "event IoTDataAdded(uint256 indexed batchId, int256 temperature, uint256 humidity, string location)"
+    "event IoTDataAdded(uint256 indexed batchId, int256 temperature, uint256 humidity, string location)",
+    "event BatchPurchased(uint256 indexed batchId, address indexed buyer, uint256 amount)",
+    "event BatchCertified(uint256 indexed batchId, bool approved)",
+    "event EscrowReleased(uint256 indexed batchId, address indexed farmer, uint256 amount)",
+    "event EscrowRefunded(uint256 indexed batchId, address indexed buyer, uint256 amount)"
 ];
 
 let provider, signer, currentAccount, usdt, dpp, currentRole;
@@ -396,13 +404,26 @@ async function farmerLoadBatches() {
             return;
         }
         
-        const statusNames = ['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
-        const statusClasses = ['status-created', 'status-verified', 'status-transit', 'status-checked', 'status-delivered', 'status-completed'];
+        const statusNames = ['Created', 'Reserved', 'Verified', 'Rejected', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
+        const statusClasses = ['status-created', 'status-transit', 'status-verified', 'status-danger', 'status-transit', 'status-checked', 'status-delivered', 'status-completed'];
         
         let html = '';
         for (const id of batchIds) {
             const batch = await dpp.getBatch(id);
             const date = new Date(Number(batch.createdAt) * 1000).toLocaleString('nl-NL');
+            
+            // Determine market status
+            let marketStatus = '';
+            if (batch.onMarket && batch.status === 0) {
+                marketStatus = '<span style="color: #f59e0b; font-weight: bold;">🛒 Op Markt</span>';
+            } else if (batch.status === 1) { // Reserved
+                const escrowAmount = Number(ethers.formatUnits(batch.escrowAmount, 6)).toFixed(2);
+                marketStatus = `<span style="color: #3b82f6; font-weight: bold;">💰 Verkocht! (Escrow: ${escrowAmount} USDT - Wacht op certificering)</span>`;
+            } else if (batch.status === 2) { // Verified
+                marketStatus = '<span style="color: #10b981; font-weight: bold;">✅ Goedgekeurd - Betaald!</span>';
+            } else if (batch.status === 3) { // Rejected
+                marketStatus = '<span style="color: #ef4444; font-weight: bold;">❌ Afgekeurd - Terug op Markt</span>';
+            }
             
             html += `
                 <div class="batch-item">
@@ -410,6 +431,7 @@ async function farmerLoadBatches() {
                     <span class="status-badge ${statusClasses[batch.status]}">${statusNames[batch.status]}</span><br>
                     Gewicht: ${batch.weight} kg | Kwaliteit: ${batch.quality}/100<br>
                     Herkomst: ${batch.origin} | ${date}<br>
+                    ${marketStatus ? `<div style="margin-top: 8px;">${marketStatus}</div>` : ''}
                     <a href="dpp-viewer.html?batch=${id}" target="_blank" class="button button-success" style="text-decoration: none; display: inline-block; width: auto; padding: 8px 16px; margin-top: 8px; font-size: 13px;">📱 View DPP</a>
                 </div>
             `;
@@ -688,43 +710,7 @@ async function transporterTrack() {
 }
 
 // ========== CERTIFIER FUNCTIONS ==========
-
-async function certifierIssueVC() {
-    const result = document.getElementById('cert-vc-result');
-    result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
-    
-    try {
-        const subject = document.getElementById('cert-subject').value;
-        const type = document.getElementById('cert-type').value;
-        const data = document.getElementById('cert-data').value;
-        const validity = document.getElementById('cert-validity').value;
-        
-        if (!subject || !type || !data || !validity) throw new Error("Alle velden verplicht!");
-        
-        const tx = await dpp.issueCredential(subject, type, data, validity);
-        showInfo(result, `Transaction: ${tx.hash}`);
-        
-        const receipt = await tx.wait();
-        
-        const event = receipt.logs.find(log => {
-            try {
-                const parsed = dpp.interface.parseLog(log);
-                return parsed.name === 'VCIssued';
-            } catch { return false; }
-        });
-        
-        let vcId = "Unknown";
-        if (event) {
-            const parsed = dpp.interface.parseLog(event);
-            vcId = parsed.args.vcId.toString();
-        }
-        
-        showSuccess(result, `✅ Credential #${vcId} uitgegeven!<br>Type: ${type}<br>Aan: ${subject}`);
-    } catch (error) {
-        console.error("❌ Issue VC error:", error);
-        showError(result, error.message);
-    }
-}
+// Legacy certifierIssueVC() function removed - use vc-aanvraag.html for VC issuance
 
 // ========== FACTORY FUNCTIONS ==========
 
@@ -751,7 +737,7 @@ async function factoryUpdateStatus() {
     }
 }
 
-async function factoryPayBonus() {
+async function factoryPayFarmer() {
     const result = document.getElementById('fact-pay-result');
     result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     
@@ -759,29 +745,236 @@ async function factoryPayBonus() {
         const batchId = document.getElementById('fact-pay-batch').value;
         if (!batchId) throw new Error("Batch ID verplicht!");
         
+        showInfo(result, `📋 Batch #${batchId} ophalen en valideren...`);
+        
+        // Get batch details
         const batch = await dpp.getBatch(batchId);
-        const baseAmount = Number(batch.weight) * 10;
+        const farmerAddress = batch.farmer;
+        const quality = Number(batch.quality);
+        const weight = Number(batch.weight);
+        const status = Number(batch.status);
+        
+        // Status check: must be Verified (1) or higher
+        if (status < 1) {
+            throw new Error(`❌ Batch moet eerst geverifieerd zijn door certificeerder!\n\nHuidige status: ${['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'][status]}\n\nVereist: Verified of hoger`);
+        }
+        
+        showInfo(result, `✅ Batch status: ${['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'][status]}<br>🔍 Certificaten van boer controleren...`);
+        
+        // Check if farmer has valid VCs
+        const vcIds = await dpp.getSubjectVCs(farmerAddress);
+        
+        if (vcIds.length === 0) {
+            throw new Error(`❌ Boer heeft geen certificaten!\n\nBoer adres: ${farmerAddress}\n\nDe boer moet minimaal 1 geldig certificaat hebben voor uitbetaling.`);
+        }
+        
+        // Check if at least one VC is valid (not expired, not revoked)
+        let hasValidVC = false;
+        let validVCTypes = [];
+        
+        for (const vcId of vcIds) {
+            const vc = await dpp.getCredential(vcId);
+            
+            // Parse VC data for real expiry date
+            let isExpired = false;
+            try {
+                const vcDataObj = JSON.parse(vc.data);
+                if (vcDataObj.geldigTot) {
+                    const realExpiryDate = new Date(vcDataObj.geldigTot);
+                    isExpired = Date.now() > realExpiryDate.getTime();
+                } else {
+                    isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                }
+            } catch (e) {
+                isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+            }
+            
+            if (!vc.revoked && !isExpired) {
+                hasValidVC = true;
+                validVCTypes.push(vc.credentialType);
+            }
+        }
+        
+        if (!hasValidVC) {
+            throw new Error(`❌ Boer heeft geen geldig certificaat!\n\nBoer heeft ${vcIds.length} certificaat(en), maar allemaal verlopen of ingetrokken.\n\nDe boer moet minimaal 1 GELDIG certificaat hebben voor uitbetaling.`);
+        }
+        
+        showInfo(result, `✅ Boer heeft ${validVCTypes.length} geldig(e) certificaat(en):<br>${validVCTypes.join(', ')}<br><br>💰 Betaling berekenen...`);
+        
+        // Calculate payment based on NEW quality structure
+        const baseRate = 10; // NEW Base rate per kg
+        let ratePerKg = baseRate;
         let bonusPerc = 0;
+        let qualityTier = 'Basis';
         
-        if (batch.quality >= 90) bonusPerc = 30;
-        else if (batch.quality >= 70) bonusPerc = 15;
+        if (quality >= 90) {
+            bonusPerc = 30;
+            ratePerKg = 13; // 10 + 30% = 13
+            qualityTier = 'Premium (90-100)';
+        } else if (quality >= 70) {
+            bonusPerc = 15;
+            ratePerKg = 11.5; // 10 + 15% = 11.5
+            qualityTier = 'Goed (70-89)';
+        } else {
+            qualityTier = 'Basis (50-69)';
+        }
         
-        const totalAmount = baseAmount + (baseAmount * bonusPerc / 100);
+        const totalAmount = weight * ratePerKg;
         const amountWei = ethers.parseUnits(totalAmount.toString(), 6);
         
         showInfo(result, `Stap 1: USDT goedkeuren (${totalAmount.toFixed(2)} USDT)...`);
         const approveTx = await usdt.approve(CONTRACTS.IntegratedCottonDPP, amountWei);
         await approveTx.wait();
         
-        showInfo(result, `Stap 2: Bonus uitbetalen...`);
+        showInfo(result, `Stap 2: Betaling uitvoeren...`);
         const tx = await dpp.payQualityBonus(batchId);
         showInfo(result, `Transaction: ${tx.hash}`);
         
         await tx.wait();
-        showSuccess(result, `✅ Kwaliteitsbonus uitbetaald!<br>Basis: ${baseAmount} USDT<br>Kwaliteit: ${batch.quality}/100 (+${bonusPerc}%)<br>Totaal: ${totalAmount.toFixed(2)} USDT`);
+        
+        showSuccess(result, `
+            ✅ Boer succesvol uitbetaald!<br><br>
+            <strong>📊 Batch Details:</strong><br>
+            Gewicht: ${weight} kg<br>
+            Kwaliteit: ${quality}/100 (${qualityTier})<br><br>
+            <strong>💰 Betaling:</strong><br>
+            Tarief: ${ratePerKg} USDT/kg ${bonusPerc > 0 ? `(+${bonusPerc}% bonus)` : ''}<br>
+            <strong>Totaal: ${totalAmount.toFixed(2)} USDT</strong><br><br>
+            <strong>✅ Certificaten:</strong><br>
+            ${validVCTypes.join('<br>')}
+        `);
+        
         await updateBalances();
     } catch (error) {
-        console.error("❌ Pay bonus error:", error);
+        console.error("❌ Pay farmer error:", error);
+        showError(result, error.message);
+    }
+}
+
+async function factoryMarkAsDeliveredAndPay() {
+    const result = document.getElementById('fact-delivery-result');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    try {
+        const batchId = document.getElementById('fact-delivery-batch').value;
+        if (!batchId) throw new Error("Batch ID verplicht!");
+        
+        showInfo(result, `📋 Batch #${batchId} ophalen en valideren...`);
+        
+        // Get batch details
+        const batch = await dpp.getBatch(batchId);
+        const farmerAddress = batch.farmer;
+        const quality = Number(batch.quality);
+        const weight = Number(batch.weight);
+        const status = Number(batch.status);
+        const statusNames = ['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
+        
+        // Check if already delivered
+        if (status >= 4) {
+            throw new Error(`❌ Batch is al aangekomen/voltooid!\n\nHuidige status: ${statusNames[status]}`);
+        }
+        
+        // Status check: must be Verified (1) or higher
+        if (status < 1) {
+            throw new Error(`❌ Batch moet eerst geverifieerd zijn door certificeerder!\n\nHuidige status: ${statusNames[status]}\n\nVereist: Verified of hoger`);
+        }
+        
+        showInfo(result, `✅ Batch status: ${statusNames[status]}<br>🔍 Certificaten van boer controleren...`);
+        
+        // Check if farmer has valid VCs
+        const vcIds = await dpp.getSubjectVCs(farmerAddress);
+        
+        if (vcIds.length === 0) {
+            throw new Error(`❌ Boer heeft geen certificaten!\n\nBoer adres: ${farmerAddress}\n\nDe boer moet minimaal 1 geldig certificaat hebben voor uitbetaling.`);
+        }
+        
+        // Check if at least one VC is valid (not expired, not revoked)
+        let hasValidVC = false;
+        let validVCTypes = [];
+        
+        for (const vcId of vcIds) {
+            const vc = await dpp.getCredential(vcId);
+            
+            // Parse VC data for real expiry date
+            let isExpired = false;
+            try {
+                const vcDataObj = JSON.parse(vc.data);
+                if (vcDataObj.geldigTot) {
+                    const realExpiryDate = new Date(vcDataObj.geldigTot);
+                    isExpired = Date.now() > realExpiryDate.getTime();
+                } else {
+                    isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                }
+            } catch (e) {
+                isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+            }
+            
+            if (!vc.revoked && !isExpired) {
+                hasValidVC = true;
+                validVCTypes.push(vc.credentialType);
+            }
+        }
+        
+        if (!hasValidVC) {
+            throw new Error(`❌ Boer heeft geen geldig certificaat!\n\nBoer heeft ${vcIds.length} certificaat(en), maar allemaal verlopen of ingetrokken.\n\nDe boer moet minimaal 1 GELDIG certificaat hebben voor uitbetaling.`);
+        }
+        
+        showInfo(result, `✅ Boer heeft ${validVCTypes.length} geldig(e) certificaat(en):<br>${validVCTypes.join(', ')}<br><br>💰 Betaling berekenen...`);
+        
+        // Calculate payment based on NEW quality structure
+        const baseRate = 10; // Base rate per kg
+        let ratePerKg = baseRate;
+        let bonusPerc = 0;
+        let qualityTier = 'Basis';
+        
+        if (quality >= 90) {
+            bonusPerc = 30;
+            ratePerKg = 13; // 10 + 30% = 13
+            qualityTier = 'Premium (90-100)';
+        } else if (quality >= 70) {
+            bonusPerc = 15;
+            ratePerKg = 11.5; // 10 + 15% = 11.5
+            qualityTier = 'Goed (70-89)';
+        } else {
+            qualityTier = 'Basis (50-69)';
+        }
+        
+        const totalAmount = weight * ratePerKg;
+        const amountWei = ethers.parseUnits(totalAmount.toString(), 6);
+        
+        showInfo(result, `Stap 1: USDT goedkeuren (${totalAmount.toFixed(2)} USDT)...`);
+        const approveTx = await usdt.approve(CONTRACTS.IntegratedCottonDPP, amountWei);
+        await approveTx.wait();
+        
+        showInfo(result, `Stap 2: Betaling uitvoeren...`);
+        const payTx = await dpp.payQualityBonus(batchId);
+        showInfo(result, `Betaling Transaction: ${payTx.hash}`);
+        await payTx.wait();
+        
+        showInfo(result, `Stap 3: Status wijzigen naar Delivered...`);
+        const statusTx = await dpp.updateBatchStatus(batchId, 4); // 4 = Delivered
+        showInfo(result, `Status Transaction: ${statusTx.hash}`);
+        await statusTx.wait();
+        
+        showSuccess(result, `
+            ✅ Batch succesvol aangekomen en boer uitbetaald!<br><br>
+            <strong>📦 Batch #${batchId}</strong><br>
+            Nieuwe Status: <strong>Delivered (Aangekomen)</strong><br><br>
+            <strong>📊 Batch Details:</strong><br>
+            Gewicht: ${weight} kg<br>
+            Kwaliteit: ${quality}/100 (${qualityTier})<br><br>
+            <strong>💰 Betaling aan Boer:</strong><br>
+            Basis tarief: ${baseRate} USDT/kg<br>
+            ${bonusPerc > 0 ? `Bonus: +${bonusPerc}%<br>` : ''}
+            <strong>Tarief: ${ratePerKg} USDT/kg</strong><br>
+            <strong>Totaal Betaald: ${totalAmount.toFixed(2)} USDT</strong><br><br>
+            <strong>✅ Certificaten:</strong><br>
+            ${validVCTypes.join('<br>')}
+        `);
+        
+        await updateBalances();
+    } catch (error) {
+        console.error("❌ Delivery + payment error:", error);
         showError(result, error.message);
     }
 }
@@ -811,6 +1004,179 @@ async function factoryViewBatch() {
         result.innerHTML = html;
     } catch (error) {
         console.error("❌ View batch error:", error);
+        showError(result, error.message);
+    }
+}
+
+// ========== MARKETPLACE FUNCTIONS ==========
+
+async function factoryLoadMarket() {
+    const result = document.getElementById('factory-market');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Laden marktplaats...</p></div>';
+    
+    try {
+        const marketBatches = await dpp.getMarketBatches();
+        
+        if (marketBatches.length === 0) {
+            result.innerHTML = '<div class="alert alert-info">📭 Geen batches beschikbaar op de markt. Wacht tot boeren nieuwe batches aanmaken.</div>';
+            return;
+        }
+        
+        let html = '<div class="batch-list">';
+        
+        for (const batchId of marketBatches) {
+            const batch = await dpp.getBatch(batchId);
+            const quality = Number(batch.quality);
+            const weight = Number(batch.weight);
+            
+            // Calculate price based on quality
+            let pricePerKg = 10;
+            let bonusText = '';
+            if (quality >= 90) {
+                pricePerKg = 13;
+                bonusText = '<span style="color: #10b981;">+30% Premium</span>';
+            } else if (quality >= 70) {
+                pricePerKg = 11.5;
+                bonusText = '<span style="color: #f59e0b;">+15% Bonus</span>';
+            }
+            
+            const totalPrice = (pricePerKg * weight).toFixed(2);
+            
+            html += `
+                <div class="batch-item" style="border-left: 4px solid #f59e0b;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 16px;">🌾 Batch #${batchId}</strong>
+                            <div style="margin-top: 8px; color: #666;">
+                                <strong>Boer:</strong> ${batch.farmer.substring(0,10)}...${batch.farmer.substring(38)}<br>
+                                <strong>Gewicht:</strong> ${weight} kg<br>
+                                <strong>Kwaliteit:</strong> ${quality}/100 ${bonusText}<br>
+                                <strong>Herkomst:</strong> ${batch.origin}<br>
+                                <strong>💰 Prijs:</strong> ${pricePerKg} USDT/kg = <strong style="color: #059669; font-size: 18px;">${totalPrice} USDT</strong>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="button button-success" onclick="factoryPurchaseBatch(${batchId})" style="min-width: 150px;">
+                                🛒 Koop Batch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        result.innerHTML = html;
+        
+    } catch (error) {
+        console.error("❌ Load market error:", error);
+        showError(result, error.message);
+    }
+}
+
+async function factoryPurchaseBatch(batchId) {
+    const result = document.getElementById('factory-market');
+    
+    if (!confirm(`Weet je zeker dat je Batch #${batchId} wilt kopen? Het bedrag wordt in escrow vastgezet tot de certificeerder goedkeurt.`)) {
+        return;
+    }
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'alert alert-info';
+    loadingDiv.innerHTML = '⏳ Batch aan het kopen en escrow aan het zetten...';
+    result.insertBefore(loadingDiv, result.firstChild);
+    
+    try {
+        const batch = await dpp.getBatch(batchId);
+        const quality = Number(batch.quality);
+        const weight = Number(batch.weight);
+        
+        // Calculate price
+        let pricePerKg = 10;
+        if (quality >= 90) {
+            pricePerKg = 13;
+        } else if (quality >= 70) {
+            pricePerKg = 11.5;
+        }
+        
+        const totalPrice = ethers.parseUnits((pricePerKg * weight).toString(), 6);
+        
+        // Step 1: Approve USDT
+        loadingDiv.innerHTML = '⏳ Stap 1/2: USDT goedkeuring...';
+        const approveTx = await usdt.approve(CONTRACTS.IntegratedCottonDPP, totalPrice);
+        await approveTx.wait();
+        
+        // Step 2: Purchase batch
+        loadingDiv.innerHTML = '⏳ Stap 2/2: Batch kopen en escrow zetten...';
+        const purchaseTx = await dpp.purchaseBatch(batchId);
+        await purchaseTx.wait();
+        
+        loadingDiv.className = 'alert alert-success';
+        loadingDiv.innerHTML = `
+            ✅ Batch #${batchId} succesvol gekocht!<br>
+            💰 ${ethers.formatUnits(totalPrice, 6)} USDT in escrow gezet<br>
+            📋 Wacht nu op goedkeuring van de certificeerder
+        `;
+        
+        await updateBalances();
+        await factoryLoadMarket();
+        await factoryLoadReservedBatches();
+        
+    } catch (error) {
+        console.error("❌ Purchase batch error:", error);
+        loadingDiv.className = 'alert alert-error';
+        loadingDiv.innerHTML = `❌ Fout bij aankoop: ${error.message}`;
+    }
+}
+
+async function factoryLoadReservedBatches() {
+    const result = document.getElementById('factory-reserved');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Laden gekochte batches...</p></div>';
+    
+    try {
+        const reservedBatches = await dpp.getReservedBatches();
+        
+        // Filter on batches where current account is the buyer
+        const myReservedBatches = [];
+        for (const batchId of reservedBatches) {
+            const batch = await dpp.getBatch(batchId);
+            if (batch.buyer.toLowerCase() === currentAccount.toLowerCase()) {
+                myReservedBatches.push({ id: batchId, batch });
+            }
+        }
+        
+        if (myReservedBatches.length === 0) {
+            result.innerHTML = '<div class="alert alert-info">📭 Je hebt nog geen batches gekocht die wachten op certificering.</div>';
+            return;
+        }
+        
+        let html = '<div class="batch-list">';
+        
+        for (const { id, batch } of myReservedBatches) {
+            const quality = Number(batch.quality);
+            const weight = Number(batch.weight);
+            const escrowAmount = Number(ethers.formatUnits(batch.escrowAmount, 6));
+            
+            html += `
+                <div class="batch-item" style="border-left: 4px solid #3b82f6;">
+                    <strong style="font-size: 16px;">🌾 Batch #${id}</strong>
+                    <div style="margin-top: 8px; color: #666;">
+                        <strong>Boer:</strong> ${batch.farmer.substring(0,10)}...${batch.farmer.substring(38)}<br>
+                        <strong>Gewicht:</strong> ${weight} kg<br>
+                        <strong>Kwaliteit:</strong> ${quality}/100<br>
+                        <strong>Herkomst:</strong> ${batch.origin}<br>
+                        <strong>💰 Escrow:</strong> <span style="color: #3b82f6; font-weight: bold;">${escrowAmount.toFixed(2)} USDT</span><br>
+                        <strong>Status:</strong> <span class="status-badge" style="background: #fef3c7; color: #92400e;">⏳ Wacht op Certificering</span>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        result.innerHTML = html;
+        
+    } catch (error) {
+        console.error("❌ Load reserved batches error:", error);
         showError(result, error.message);
     }
 }

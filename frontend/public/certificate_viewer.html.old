@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifiable Credentials - DPP</title>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.7.0/dist/ethers.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.95;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            color: #1e3a8a;
+            padding: 12px 24px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .summary-box {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 35px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .summary-box h3 {
+            color: #1e293b;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border-radius: 15px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #0ea5e9;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .vc-card {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            border-left: 8px solid #0ea5e9;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .vc-card::before {
+            content: '🎓';
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            font-size: 150px;
+            opacity: 0.05;
+        }
+
+        .vc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e2e8f0;
+        }
+
+        .vc-title-section {
+            flex: 1;
+        }
+
+        .vc-title {
+            font-size: 28px;
+            color: #1e293b;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .vc-subtitle {
+            font-size: 16px;
+            color: #64748b;
+            font-style: italic;
+        }
+
+        .vc-status {
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 15px;
+            font-weight: 700;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .vc-status.valid {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #065f46;
+        }
+
+        .vc-status.expired {
+            background: linear-gradient(135deg, #fed7aa, #fdba74);
+            color: #92400e;
+        }
+
+        .vc-status.revoked {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            color: #991b1b;
+        }
+
+        .cert-issuer {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .cert-issuer-title {
+            font-size: 12px;
+            color: #1e40af;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .cert-issuer-name {
+            font-size: 18px;
+            color: #1e3a8a;
+            font-weight: 700;
+            font-family: monospace;
+        }
+
+        .cert-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin: 25px 0;
+        }
+
+        .cert-detail {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            padding: 18px;
+            border-radius: 10px;
+            border-left: 3px solid #0ea5e9;
+        }
+
+        .cert-detail-label {
+            font-size: 12px;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+
+        .cert-detail-value {
+            font-size: 16px;
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .cert-description {
+            background: #f0f9ff;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 25px 0;
+            border-left: 4px solid #0ea5e9;
+        }
+
+        .cert-description p {
+            color: #475569;
+            line-height: 1.8;
+            font-size: 15px;
+        }
+
+        .cert-description strong {
+            color: #0ea5e9;
+        }
+
+        .vc-data-box {
+            background: linear-gradient(135deg, #fefce8, #fef9c3);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 25px;
+            border-left: 4px solid #eab308;
+        }
+
+        .vc-data-title {
+            font-weight: 700;
+            color: #854d0e;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .cert-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .cert-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 13px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .cert-badge.verified {
+            background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+            color: #065f46;
+        }
+
+        .cert-badge.blockchain {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            color: #1e40af;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            padding: 60px 20px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .no-vcs {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            color: #64748b;
+        }
+
+        .no-vcs h2 {
+            color: #f59e0b;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📜 Verifiable Credentials</h1>
+            <p id="batch-info">Batch certificaten</p>
+        </div>
+
+        <a href="#" onclick="history.back(); return false;" class="back-button">
+            ← Terug naar DPP
+        </a>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 20px;">VCs laden van blockchain...</p>
+        </div>
+
+        <div id="vc-container" style="display: none;"></div>
+    </div>
+
+    <script>
+        const RPC_URL = "http://localhost:8545";
+        const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
+
+        const DPP_ABI = [
+            "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds)",
+            "function getSubjectVCs(address subject) view returns (uint256[])",
+            "function getCredential(uint256 vcId) view returns (uint256 id, address issuer, address subject, string credentialType, string data, uint256 issuedAt, uint256 expiresAt, bool revoked)"
+        ];
+
+        let provider, contract;
+
+        async function init() {
+            try {
+                provider = new ethers.JsonRpcProvider(RPC_URL);
+                contract = new ethers.Contract(CONTRACT_ADDRESS, DPP_ABI, provider);
+                
+                // Get batch ID from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const batchId = urlParams.get('batch');
+                
+                if (!batchId) {
+                    document.getElementById('loading').innerHTML = '<div class="no-vcs"><h2>❌ Geen batch opgegeven</h2><p>Voeg ?batch=1 toe aan de URL</p></div>';
+                    document.getElementById('loading').style.display = 'block';
+                    return;
+                }
+                
+                document.getElementById('batch-info').textContent = `Certificaten voor Batch #${batchId}`;
+                
+                // Get batch info
+                const batch = await contract.getBatch(batchId);
+                const farmerAddress = batch.farmer;
+                
+                // Get all VCs for this farmer
+                const vcIds = await contract.getSubjectVCs(farmerAddress);
+                
+                if (vcIds.length === 0) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('vc-container').innerHTML = `
+                        <div class="no-vcs">
+                            <h2>💡 Geen Verifiable Credentials</h2>
+                            <p>Deze boer heeft nog geen VCs ontvangen. Een certificeerder kan VCs toewijzen via de VC Aanvraag module.</p>
+                        </div>
+                    `;
+                    document.getElementById('vc-container').style.display = 'block';
+                    return;
+                }
+                
+                // Count valid, expired, revoked VCs
+                let validCount = 0;
+                let expiredCount = 0;
+                let revokedCount = 0;
+                
+                for (const vcId of vcIds) {
+                    const vc = await contract.getCredential(vcId);
+                    let isExpired = false;
+                    
+                    try {
+                        const vcDataObj = JSON.parse(vc.data);
+                        if (vcDataObj.geldigTot) {
+                            const realExpiryDate = new Date(vcDataObj.geldigTot);
+                            isExpired = Date.now() > realExpiryDate.getTime();
+                        } else {
+                            isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                        }
+                    } catch (e) {
+                        isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                    }
+                    
+                    if (vc.revoked) {
+                        revokedCount++;
+                    } else if (isExpired) {
+                        expiredCount++;
+                    } else {
+                        validCount++;
+                    }
+                }
+                
+                // Generate summary box
+                let html = `
+                    <div class="summary-box">
+                        <h3>📊 Certificaten Overzicht voor Batch #${batchId}</h3>
+                        <div class="summary-stats">
+                            <div class="stat-item">
+                                <div class="stat-value">${vcIds.length}</div>
+                                <div class="stat-label">Totaal VCs</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0);">
+                                <div class="stat-value" style="color: #065f46;">${validCount}</div>
+                                <div class="stat-label" style="color: #065f46;">✅ Geldig</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #fed7aa, #fdba74);">
+                                <div class="stat-value" style="color: #92400e;">${expiredCount}</div>
+                                <div class="stat-label" style="color: #92400e;">⏰ Verlopen</div>
+                            </div>
+                            <div class="stat-item" style="background: linear-gradient(135deg, #fee2e2, #fecaca);">
+                                <div class="stat-value" style="color: #991b1b;">${revokedCount}</div>
+                                <div class="stat-label" style="color: #991b1b;">❌ Ingetrokken</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                // Group VCs by stakeholder role and certificate type
+                const vcsByStakeholder = {};
+                
+                for (const vcId of vcIds) {
+                    const vc = await contract.getCredential(vcId);
+                    
+                    // Parse data for real expiry date
+                    let realExpiryDate = null;
+                    let isExpired = false;
+                    let vcDataObj = {};
+                    
+                    try {
+                        vcDataObj = JSON.parse(vc.data);
+                        if (vcDataObj.geldigTot) {
+                            realExpiryDate = new Date(vcDataObj.geldigTot);
+                            isExpired = Date.now() > realExpiryDate.getTime();
+                        } else {
+                            isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                            realExpiryDate = new Date(Number(vc.expiresAt) * 1000);
+                        }
+                    } catch (e) {
+                        isExpired = Date.now() > Number(vc.expiresAt) * 1000;
+                        realExpiryDate = new Date(Number(vc.expiresAt) * 1000);
+                    }
+                    
+                    const isRevoked = vc.revoked;
+                    let statusClass = 'valid';
+                    let statusText = '✅ Geldig';
+                    
+                    if (isRevoked) {
+                        statusClass = 'revoked';
+                        statusText = '❌ Ingetrokken';
+                    } else if (isExpired) {
+                        statusClass = 'expired';
+                        statusText = '⏰ Verlopen';
+                    }
+                    
+                    const issuedDate = new Date(Number(vc.issuedAt) * 1000);
+                    
+                    // Determine stakeholder based on certificate type
+                    const certType = vc.credentialType;
+                    let stakeholder = 'Boer';
+                    let stakeholderIcon = '👨‍🌾';
+                    let stakeholderDesc = 'Katoenproducent';
+                    
+                    if (certType.includes('Transport') || certType.includes('ISO 9001') || certType.includes('GDP')) {
+                        stakeholder = 'Transporteur';
+                        stakeholderIcon = '🚛';
+                        stakeholderDesc = 'Logistiek dienstverlener';
+                    } else if (certType.includes('Processing') || certType.includes('Ginning') || certType.includes('ISO 14001')) {
+                        stakeholder = 'Verwerker';
+                        stakeholderIcon = '🏭';
+                        stakeholderDesc = 'Katoenverwerking (Ginning)';
+                    } else if (certType.includes('Spinning') || certType.includes('OCS')) {
+                        stakeholder = 'Spinnerij';
+                        stakeholderIcon = '🧵';
+                        stakeholderDesc = 'Garenproductie';
+                    }
+                    
+                    // Generate certificate description
+                    let certDescription = '';
+                    if (certType.includes('Organic') || certType.includes('GOTS')) {
+                        certDescription = 'Dit certificaat bevestigt dat de katoen is geteeld volgens <strong>biologische normen</strong> zonder gebruik van schadelijke pesticiden of synthetische meststoffen. De boer heeft voldaan aan strikte eisen voor duurzame landbouw en heeft een onafhankelijke audit doorstaan.';
+                    } else if (certType.includes('Quality')) {
+                        certDescription = 'Dit certificaat garandeert de <strong>superieure kwaliteit</strong> van de katoen. Het product is getest op vezelsterkte, lengte en zuiverheid volgens internationale standaarden.';
+                    } else if (certType.includes('Fair') || certType.includes('FairTrade')) {
+                        certDescription = 'Fair Trade certificering waarborgt <strong>eerlijke handelspraktijken</strong> en betere arbeidsomstandigheden voor boeren en arbeiders. Boeren ontvangen een premium bovenop de marktprijs.';
+                    } else if (certType.includes('BCI')) {
+                        certDescription = 'Better Cotton Initiative is het grootste <strong>duurzame katoen programma</strong> ter wereld. BCI boeren worden getraind in waterefficiënt irrigeren en het verminderen van schadelijke chemicaliën.';
+                    } else if (certType.includes('ISO 9001')) {
+                        certDescription = 'ISO 9001 is de internationale standaard voor <strong>kwaliteitsmanagementsystemen</strong>. Dit certificaat bewijst gestructureerde processen voor consistente, hoogwaardige dienstverlening.';
+                    } else if (certType.includes('GDP')) {
+                        certDescription = 'Good Distribution Practice certificering voor <strong>temperatuurgecontroleerd transport</strong>. Garandeert continue monitoring van temperatuur en luchtvochtigheid.';
+                    } else if (certType.includes('ISO 14001')) {
+                        certDescription = 'ISO 14001 certificering voor <strong>Environmental Management Systems</strong>. Bewijst systematische reductie van milieu-impact door efficiënt gebruik van water en energie.';
+                    } else if (certType.includes('OCS')) {
+                        certDescription = 'Organic Content Standard certificering verifieert de <strong>aanwezigheid en hoeveelheid biologisch materiaal</strong> in het eindproduct met Chain of Custody tracking.';
+                    } else {
+                        certDescription = 'Dit blockchain-geverifieerd certificaat bevestigt de <strong>authenticiteit en traceerbaarheid</strong> van dit katoen product door de gehele supply chain.';
+                    }
+                    
+                    // Initialize stakeholder group if doesn't exist
+                    if (!vcsByStakeholder[stakeholder]) {
+                        vcsByStakeholder[stakeholder] = {
+                            icon: stakeholderIcon,
+                            desc: stakeholderDesc,
+                            vcs: []
+                        };
+                    }
+                    
+                    html += `
+                        <div class="vc-card">
+                            <div class="vc-header">
+                                <div class="vc-title-section">
+                                    <div class="vc-title">${certType}</div>
+                                    <div class="vc-subtitle">Credential ID: #${vcId.toString()}</div>
+                                </div>
+                                <div class="vc-status ${statusClass}">${statusText}</div>
+                            </div>
+                            
+                            <div class="cert-description">
+                                <p>${certDescription}</p>
+                            </div>
+                            
+                            <div class="cert-issuer">
+                                <div class="cert-issuer-title">🏛️ Uitgegeven door Certificerende Instantie</div>
+                                <div class="cert-issuer-name">${vc.issuer}</div>
+                            </div>
+                            
+                            <div class="cert-details">
+                                <div class="cert-detail">
+                                    <div class="cert-detail-label">📅 Uitgiftedatum</div>
+                                    <div class="cert-detail-value">${issuedDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                                </div>
+                                <div class="cert-detail">
+                                    <div class="cert-detail-label">⏳ Geldig tot</div>
+                                    <div class="cert-detail-value">${realExpiryDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+                                </div>
+                                <div class="cert-detail">
+                                    <div class="cert-detail-label">👨‍🌾 Gecertificeerde Boer</div>
+                                    <div class="cert-detail-value" style="font-size: 12px;">${vc.subject.substring(0, 10)}...${vc.subject.substring(38)}</div>
+                                </div>
+                                <div class="cert-detail">
+                                    <div class="cert-detail-label">🔒 Blockchain ID</div>
+                                    <div class="cert-detail-value">#${vcId.toString()}</div>
+                                </div>
+                            </div>
+                            
+                            <div class="cert-badges">
+                                <div class="cert-badge verified">✓ Blockchain Verified</div>
+                                <div class="cert-badge blockchain">🔗 Immutable Record</div>
+                                ${!isExpired && !isRevoked ? '<div class="cert-badge verified">✓ Currently Valid</div>' : ''}
+                            </div>
+                            
+                            <div class="vc-data-box">
+                                <div class="vc-data-title">� Specifieke Certificaat Details</div>
+                                ${Object.entries(vcDataObj).filter(([key]) => !['validatieDatum', 'certificeerderOpmerkingen'].includes(key)).map(([key, value]) => `
+                                    <div class="cert-detail" style="margin-bottom: 10px;">
+                                        <div class="cert-detail-label">${key.charAt(0).toUpperCase() + key.slice(1)}</div>
+                                        <div class="cert-detail-value">${value}</div>
+                                    </div>
+                                `).join('')}
+                                ${vcDataObj.certificeerderOpmerkingen ? `
+                                    <div class="cert-description" style="margin-top: 15px;">
+                                        <strong>💬 Opmerkingen certificeerder:</strong>
+                                        <p style="margin-top: 8px;">${vcDataObj.certificeerderOpmerkingen}</p>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('vc-container').innerHTML = html;
+                document.getElementById('vc-container').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').innerHTML = `
+                    <div class="no-vcs">
+                        <h2>❌ Fout bij laden VCs</h2>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

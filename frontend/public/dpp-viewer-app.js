@@ -3,7 +3,7 @@ const RPC_URL = "http://localhost:8545";
 const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // IntegratedCottonDPP
 
 const DPP_ABI = [
-    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds)",
+    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)",
     "function getIoTDataCount(uint256 batchId) view returns (uint256)",
     "function getIoTData(uint256 batchId, uint256 index) view returns (int256 temperature, uint256 humidity, string location, uint256 timestamp, address recorder)",
     "function getBatchPayments(uint256) view returns (tuple(address from, address to, uint256 amount, uint256 batchId, string reason, uint256 timestamp)[])",
@@ -14,8 +14,8 @@ const DPP_ABI = [
 
 let provider, contract;
 
-const STATUS_NAMES = ['Created', 'Verified', 'In Transit', 'Quality Checked', 'Delivered', 'Completed'];
-const STATUS_ICONS = ['🌱', '✅', '🚛', '🔬', '📦', '✔️'];
+const STATUS_NAMES = ['Created', 'Reserved', 'Verified', 'Rejected', 'In Transit', 'Quality Checked', 'Delivered', 'Completed'];
+const STATUS_ICONS = ['🌱', '💰', '✅', '❌', '🚛', '🔬', '📦', '✔️'];
 
 window.addEventListener('load', async () => {
     console.log("🚀 Page loaded, starting initialization...");
@@ -244,9 +244,9 @@ async function loadDPP() {
                     <div class="product-image">🌾</div>
                 </div>
                 <div class="product-details">
-                    <h3>Biologische Katoen Batch</h3>
+                    <h3>Biologisch Katoen T-Shirt</h3>
                     <div class="detail-row">
-                        <span class="detail-label">Product ID:</span>
+                        <span class="detail-label">Product-ID:</span>
                         <span class="detail-value">DPP-2024-KT-${String(batchId).padStart(5, '0')}</span>
                     </div>
                     <div class="detail-row">
@@ -254,45 +254,65 @@ async function loadDPP() {
                         <span class="detail-value">GreenWear Sustainable</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Boer:</span>
-                        <span class="detail-value">Rajesh Kumar - Gujarat, India</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Wallet:</span>
-                        <span class="detail-value">${batch.farmer.substring(0, 10)}...${batch.farmer.substring(38)}</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Gewicht:</span>
-                        <span class="detail-value">${batch.weight.toString()} kg ruwe katoen</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Kwaliteit:</span>
+                        <span class="detail-label">Eindkwaliteit:</span>
                         <span class="detail-value">${batch.quality.toString()}/100 ${Number(batch.quality.toString()) >= 90 ? '- Uitstekend' : Number(batch.quality.toString()) >= 70 ? '- Goed' : '- Voldoende'}</span>
                     </div>
                     <div class="detail-row">
+                        <span class="detail-label">Shirt-Maat:</span>
+                        <span class="detail-value">M (Medium) - Unisex</span>
+                    </div>
+                    <div class="detail-row">
                         <span class="detail-label">Herkomst:</span>
-                        <span class="detail-value">${batch.origin} (23.0225° N, 72.5714° E)</span>
+                        <span class="detail-value">${batch.origin}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Katoensoort:</span>
-                        <span class="detail-value">Gossypium hirsutum</span>
+                        <span class="detail-value">Gossypium hirsutum (Biologisch)</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Productiedatum:</span>
+                        <span class="detail-label">Productie-Datum:</span>
                         <span class="detail-value">${new Date(Number(batch.createdAt.toString()) * 1000).toLocaleDateString('nl-NL')}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Status:</span>
                         <span class="status-badge success">${STATUS_ICONS[batch.status]} ${STATUS_NAMES[batch.status]}</span>
                     </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Certificaten:</span>
-                        <span class="detail-value">${vcCertificates}</span>
+                    ${batch.status === 1 && Number(batch.escrowAmount) > 0 ? `
+                    <div class="detail-row" style="background: #dbeafe; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                            <div style="color: #1e40af; font-weight: 600; font-size: 15px;">💰 Escrow Status</div>
+                            <div style="color: #3b82f6; font-size: 14px;">
+                                <strong>Bedrag in Escrow:</strong> ${(Number(batch.escrowAmount) / 1000000).toFixed(2)} USDT<br>
+                                <strong>Gekocht door:</strong> ${batch.buyer.substring(0,10)}...${batch.buyer.substring(38)}<br>
+                                <strong>Status:</strong> ⏳ Wacht op certificering
+                            </div>
+                        </div>
                     </div>
-                    <div class="detail-row">
-                        <span class="detail-label">IoT Records:</span>
-                        <span class="detail-value">${iotCount.toString()} sensor readings</span>
+                    ` : ''}
+                    ${batch.status === 2 && batch.certified ? `
+                    <div class="detail-row" style="background: #d1fae5; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                            <div style="color: #065f46; font-weight: 600; font-size: 15px;">✅ Betaling Voltooid</div>
+                            <div style="color: #059669; font-size: 14px;">
+                                <strong>Escrow Uitbetaald:</strong> ${Number(batch.escrowAmount) > 0 ? (Number(batch.escrowAmount) / 1000000).toFixed(2) + ' USDT' : 'N/A'}<br>
+                                <strong>Gecertificeerd:</strong> ✅ Ja<br>
+                                <strong>Betaald aan:</strong> Boer
+                            </div>
+                        </div>
                     </div>
+                    ` : ''}
+                    ${batch.status === 3 && batch.rejected ? `
+                    <div class="detail-row" style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 10px;">
+                        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                            <div style="color: #92400e; font-weight: 600; font-size: 15px;">❌ Batch Afgekeurd</div>
+                            <div style="color: #d97706; font-size: 14px;">
+                                <strong>Escrow Teruggestort:</strong> ${Number(batch.escrowAmount) > 0 ? (Number(batch.escrowAmount) / 1000000).toFixed(2) + ' USDT' : 'N/A'}<br>
+                                <strong>Teruggestort aan:</strong> ${batch.buyer.substring(0,10)}...${batch.buyer.substring(38)}<br>
+                                <strong>Status:</strong> Terug op markt
+                            </div>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
 
@@ -338,6 +358,70 @@ async function loadDPP() {
                         <p style="margin: 5px 0 0 0; font-size: 13px; color: #78350f;">Deze boer heeft nog geen geldige Verifiable Credentials.</p>
                     </div>
                 `}
+                ${payments.length > 0 ? `
+                    <div style="margin-top: 15px; padding: 15px; background: #d1fae5; border-radius: 8px; border-left: 4px solid #10b981;">
+                        <strong style="color: #065f46;">💰 Betaling Status:</strong>
+                        ${payments.map(payment => {
+                            const amount = ethers.formatUnits(payment.amount, 6);
+                            const quality = Number(batch.quality.toString());
+                            let qualityTier = '';
+                            let bonusPerc = 0;
+                            // NEW bonus structure: 10 USDT base, +15% for 70-89, +30% for 90-100
+                            if (quality >= 90) {
+                                qualityTier = 'Premium Kwaliteit';
+                                bonusPerc = 30;
+                            } else if (quality >= 70) {
+                                qualityTier = 'Goede Kwaliteit';
+                                bonusPerc = 15;
+                            } else {
+                                qualityTier = 'Basis Kwaliteit';
+                                bonusPerc = 0;
+                            }
+                            
+                            return `
+                            <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 6px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <strong style="color: #059669;">✅ Boer Uitbetaald</strong>
+                                    <span style="font-size: 14px; font-weight: bold; color: #047857;">${amount} USDT</span>
+                                </div>
+                                <div style="font-size: 13px; margin-top: 5px; color: #64748b;">
+                                    <strong>Reden:</strong> ${payment.reason}<br>
+                                    <strong>Kwaliteitsscore:</strong> ${quality}/100 - ${qualityTier}${bonusPerc > 0 ? ` (+${bonusPerc}% bonus)` : ''}<br>
+                                    <strong>Basis tarief:</strong> 10 USDT/kg<br>
+                                    <strong>Betaald tarief:</strong> ${(parseFloat(amount) / Number(batch.weight.toString())).toFixed(2)} USDT/kg<br>
+                                    <strong>Datum:</strong> ${new Date(Number(payment.timestamp.toString()) * 1000).toLocaleDateString('nl-NL')}
+                                </div>
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : batch.status >= 1 ? `
+                    <div style="margin-top: 15px; padding: 15px; background: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <strong style="color: #92400e;">⚠️ Nog niet uitbetaald</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 13px; color: #78350f;">
+                            Batch is geverifieerd (status: ${['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'][batch.status]})${farmerVCs.length > 0 ? ' en boer is gecertificeerd' : ' maar boer moet nog gecertificeerd worden'}.<br><br>
+                            ${farmerVCs.length > 0 ? '<strong>💡 Inkoopcoöperatie moet nu de boer uitbetalen!</strong><br>Na verificatie door certificeerder kan de inkoopcoöperatie de betaling uitvoeren via het Factory dashboard.' : '<strong>⚠️ Boer moet eerst gecertificeerd worden voordat uitbetaling mogelijk is.</strong>'}<br><br>
+                            <strong>💰 Geschatte Betaling (basis 10 USDT/kg):</strong><br>
+                            Kwaliteit ${Number(batch.quality)}/100: ${Number(batch.quality) >= 90 ? '13 USDT/kg (+30% bonus)' : Number(batch.quality) >= 70 ? '11.5 USDT/kg (+15% bonus)' : '10 USDT/kg (basis)'}<br>
+                            Totaal: ~${(Number(batch.weight) * (Number(batch.quality) >= 90 ? 13 : Number(batch.quality) >= 70 ? 11.5 : 10)).toFixed(2)} USDT
+                        </p>
+                    </div>
+                ` : batch.status === 0 && farmerVCs.length > 0 ? `
+                    <div style="margin-top: 15px; padding: 15px; background: #e0f2fe; border-radius: 8px; border-left: 4px solid #0ea5e9;">
+                        <strong style="color: #075985;">📋 Wacht op Certificering</strong>
+                        <p style="margin: 5px 0 0 0; font-size: 13px; color: #0c4a6e;">
+                            Batch moet eerst door certificeerder geverifieerd worden.<br>
+                            ✅ Boer is gecertificeerd en klaar voor betaling<br>
+                            🔄 Na certificering kan <strong>inkoopcoöperatie de boer uitbetalen</strong>!<br><br>
+                            <strong>💰 Geschatte Betaling:</strong><br>
+                            Kwaliteit ${Number(batch.quality)}/100: ${Number(batch.quality) >= 90 ? '13 USDT/kg (+30% bonus)' : Number(batch.quality) >= 70 ? '11.5 USDT/kg (+15% bonus)' : '10 USDT/kg (basis)'}<br>
+                            Totaal: ~${(Number(batch.weight) * (Number(batch.quality) >= 90 ? 13 : Number(batch.quality) >= 70 ? 11.5 : 10)).toFixed(2)} USDT
+                        </p>
+                    </div>
+                ` : ''}
+                <button onclick="window.location.href='certificate_viewer.html?batch=${batchId}'" class="cert-button" style="margin-top: 15px;">
+                    📜 Bekijk alle certificaten in detail
+                </button>
             </div>
 
             <div class="impact-container">
@@ -381,7 +465,147 @@ async function loadDPP() {
             </div>
 
             <h3 style="color: #1e293b; font-size: 22px; margin-top: 30px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                <span>🗺️</span> Supply Chain Tijdlijn
+                <span>�</span> Verdeling van Opbrengst binnen de Keten
+            </h3>
+
+            <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px;">
+                <div style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+                    <strong>Benadering:</strong> Percentage van de productiewaarde per stakeholder (Totaal: 100%)
+                </div>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                    <!-- Boer -->
+                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <span style="font-size: 28px;">👨‍🌾</span>
+                            <div>
+                                <div style="font-size: 14px; opacity: 0.9;">Boer</div>
+                                <div style="font-size: 32px; font-weight: bold;">6%</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background: white; height: 100%; width: 6%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Transport -->
+                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <span style="font-size: 28px;">🚚</span>
+                            <div>
+                                <div style="font-size: 14px; opacity: 0.9;">Transport</div>
+                                <div style="font-size: 32px; font-weight: bold;">10%</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background: white; height: 100%; width: 10%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Verwerker (Ginning) -->
+                    <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <span style="font-size: 28px;">🏭</span>
+                            <div>
+                                <div style="font-size: 14px; opacity: 0.9;">Verwerker (Ginning)</div>
+                                <div style="font-size: 32px; font-weight: bold;">8%</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background: white; height: 100%; width: 8%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Spinnerij (Garen) -->
+                    <div style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <span style="font-size: 28px;">🧵</span>
+                            <div>
+                                <div style="font-size: 14px; opacity: 0.9;">Spinnerij (Garen)</div>
+                                <div style="font-size: 32px; font-weight: bold;">15%</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background: white; height: 100%; width: 15%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Weverij (Stof) -->
+                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <span style="font-size: 28px;">🪡</span>
+                            <div>
+                                <div style="font-size: 14px; opacity: 0.9;">Weverij (Stof)</div>
+                                <div style="font-size: 32px; font-weight: bold;">18%</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background: white; height: 100%; width: 18%;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Confectiefabriek -->
+                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                            <span style="font-size: 28px;">👕</span>
+                            <div>
+                                <div style="font-size: 14px; opacity: 0.9;">Confectiefabriek</div>
+                                <div style="font-size: 32px; font-weight: bold;">43%</div>
+                            </div>
+                        </div>
+                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                            <div style="background: white; height: 100%; width: 43%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visual Bar Chart -->
+                <div style="margin-top: 30px;">
+                    <div style="color: #1e293b; font-weight: 600; margin-bottom: 15px; font-size: 16px;">
+                        📊 Visuele Verdeling (Totaal: 100%)
+                    </div>
+                    <div style="display: flex; height: 40px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                        <div style="background: #10b981; width: 6%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Boer - 6%">
+                            6%
+                        </div>
+                        <div style="background: #3b82f6; width: 10%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Transport - 10%">
+                            10%
+                        </div>
+                        <div style="background: #8b5cf6; width: 8%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Verwerker - 8%">
+                            8%
+                        </div>
+                        <div style="background: #ec4899; width: 15%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Spinnerij - 15%">
+                            15%
+                        </div>
+                        <div style="background: #f59e0b; width: 18%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Weverij - 18%">
+                            18%
+                        </div>
+                        <div style="background: #ef4444; width: 43%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;" title="Confectiefabriek - 43%">
+                            43%
+                        </div>
+                    </div>
+                    <div style="display: flex; margin-top: 8px; font-size: 11px; color: #64748b;">
+                        <div style="width: 6%; text-align: center;">👨‍🌾</div>
+                        <div style="width: 10%; text-align: center;">🚚</div>
+                        <div style="width: 8%; text-align: center;">🏭</div>
+                        <div style="width: 15%; text-align: center;">🧵</div>
+                        <div style="width: 18%; text-align: center;">🪡</div>
+                        <div style="width: 43%; text-align: center;">👕</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; padding: 15px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                    <strong style="color: #1e40af;">💡 Toelichting:</strong>
+                    <p style="margin: 8px 0 0 0; color: #475569; font-size: 14px; line-height: 1.6;">
+                        Deze percentages tonen de gemiddelde waarde-verdeling in de katoenketen. De confectiefabriek heeft het hoogste percentage 
+                        omdat daar de grootste toegevoegde waarde ontstaat (design, branding, marketing, retail). De boer krijgt een relatief klein 
+                        percentage, maar door blockchain-gebaseerde transparantie en directe betaling wordt eerlijke handel gestimuleerd.
+                    </p>
+                </div>
+            </div>
+
+            <h3 style="color: #1e293b; font-size: 22px; margin-top: 30px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                <span>�🗺️</span> Supply Chain Tijdlijn
             </h3>
 
             <div class="timeline">

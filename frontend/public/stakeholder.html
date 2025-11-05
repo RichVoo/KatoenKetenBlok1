@@ -328,37 +328,6 @@
                     🚀 Open VC Aanvraag Module
                 </a>
             </div>
-            
-            <div class="card">
-                <h2>1. Verifiable Credential Uitgeven (Legacy)</h2>
-                <div class="alert alert-info">
-                    <strong>ℹ️ Info:</strong> Geef een credential uit aan een boer voor bio certificatie, kwaliteit of fairtrade.
-                </div>
-                <div class="form-group">
-                    <label>Boer Address</label>
-                    <input type="text" id="cert-subject" placeholder="0x70997970C51812dc3A010C7d01b50e0d17dc79C8">
-                </div>
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label>Type Certificaat</label>
-                        <select id="cert-type">
-                            <option value="OrganicCertificate">Bio Certificaat</option>
-                            <option value="QualityCertificate">Kwaliteit Certificaat</option>
-                            <option value="FairTradeCertificate">Fairtrade Certificaat</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Geldigheid (dagen)</label>
-                        <input type="number" id="cert-validity" value="365">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label>Data (JSON)</label>
-                    <textarea id="cert-data">{"issuer":"Bio Certificaat NL","score":95,"details":"Voldoet aan EU Bio normen"}</textarea>
-                </div>
-                <button class="button button-success" onclick="certifierIssueVC()">📜 Geef Credential Uit</button>
-                <div id="cert-vc-result"></div>
-            </div>
         </div>
 
         <!-- FACTORY DASHBOARD -->
@@ -367,10 +336,34 @@
                 <h2>🏭 Inkoop Coöperatie Dashboard</h2>
                 <div class="task-list">
                     <h3>📋 Uw Taken:</h3>
-                    <div class="task-item">🔬 Kwaliteitscontrole uitvoeren bij ontvangst</div>
+                    <div class="task-item">� Katoen batches op de markt bekijken en kopen</div>
+                    <div class="task-item">📋 Gekochte batches laten certificeren</div>
+                    <div class="task-item">�🔬 Kwaliteitscontrole uitvoeren bij ontvangst</div>
                     <div class="task-item">✅ Batch status updaten</div>
-                    <div class="task-item">💰 Betalingen uitvoeren aan boeren met kwaliteitsbonus</div>
                 </div>
+            </div>
+
+            <div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b;">
+                <h2 style="color: #92400e;">� Marktplaats - Beschikbare Batches</h2>
+                <div class="alert alert-info" style="background: white;">
+                    <strong>💡 Hoe werkt het?</strong><br>
+                    1. Boeren plaatsen hun geoogste katoen batches op de markt<br>
+                    2. Jij bekijkt de markt en kiest welke batch je wilt kopen<br>
+                    3. Bij aankoop wordt het bedrag in escrow vastgezet in het smart contract<br>
+                    4. Certificeerder keurt de batch goed of af<br>
+                    5. Bij goedkeuring: escrow → boer | Bij afkeuring: escrow → jou (refund)
+                </div>
+                <button class="button" style="background: #f59e0b;" onclick="factoryLoadMarket()">🔄 Ververs Marktplaats</button>
+                <div id="factory-market"></div>
+            </div>
+
+            <div class="card" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left: 4px solid #3b82f6;">
+                <h2 style="color: #1e40af;">📦 Mijn Gekochte Batches (Wacht op Certificering)</h2>
+                <div class="alert alert-info" style="background: white;">
+                    <strong>ℹ️ Info:</strong> Deze batches heb je gekocht en wachten op goedkeuring door de certificeerder. Het betaalde bedrag zit in escrow.
+                </div>
+                <button class="button" style="background: #3b82f6;" onclick="factoryLoadReservedBatches()">🔄 Ververs Mijn Batches</button>
+                <div id="factory-reserved"></div>
             </div>
 
             <div class="card">
@@ -397,29 +390,13 @@
             </div>
 
             <div class="card">
-                <h2>2. Betaling aan Boer met Kwaliteitsbonus</h2>
-                <div class="alert alert-warning">
-                    <strong>💰 Bonus Structuur:</strong><br>
-                    Kwaliteit 90-100: +30% bonus<br>
-                    Kwaliteit 70-89: +15% bonus<br>
-                    Basis: 10 USDT per kg
-                </div>
-                <div class="form-group">
-                    <label>Batch ID</label>
-                    <input type="number" id="fact-pay-batch" placeholder="1">
-                </div>
-                <button class="button button-success" onclick="factoryPayBonus()">💰 Betaal Kwaliteitsbonus</button>
-                <div id="fact-pay-result"></div>
-            </div>
-
-            <div class="card">
-                <h2>3. USDT Faucet</h2>
+                <h2>2. USDT Faucet</h2>
                 <button class="button button-warning" onclick="getFaucet()">🚰 Krijg 1000 USDT</button>
                 <div id="fact-faucet-result"></div>
             </div>
 
             <div class="card">
-                <h2>4. Batch Details Bekijken</h2>
+                <h2>3. Batch Details Bekijken</h2>
                 <div class="form-group">
                     <label>Batch ID</label>
                     <input type="number" id="fact-view-batch" placeholder="1">
