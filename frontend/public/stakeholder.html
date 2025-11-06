@@ -134,6 +134,11 @@
                     <div class="role-name">Inkoop Coöperatie</div>
                     <div class="role-desc">Verwerking & Productie</div>
                 </div>
+                <div class="role-card" onclick="selectRole('processing', 6)">
+                    <div class="role-icon">🏭</div>
+                    <div class="role-name">Verwerking t/m Retail</div>
+                    <div class="role-desc">Verwerking tot Retail</div>
+                </div>
                 <div class="role-card" onclick="selectRole('custom', -1)">
                     <div class="role-icon">🔑</div>
                     <div class="role-name">Custom DID</div>
@@ -185,8 +190,8 @@
                         <option value="1">Account #1 - Boer</option>
                         <option value="2">Account #2 - Transporteur</option>
                         <option value="3">Account #3 - Certificeerder</option>
-                        <option value="4">Account #4 - Transport (Alt)</option>
                         <option value="5">Account #5 - Inkoop Coöperatie</option>
+                        <option value="6">Account #6 - Verwerking t/m Retail</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -377,37 +382,44 @@
                 <div id="cooperative-reserved"></div>
             </div>
 
+            <div class="card" style="background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-left: 4px solid #10b981;">
+                <h2 style="color: #065f46;">📤 Mijn Batches Doorverkopen</h2>
+                <div class="alert alert-info" style="background: white;">
+                    <strong>💡 Hoe werkt het?</strong><br>
+                    1. Bekijk hieronder de batches die je hebt gekocht en die zijn goedgekeurd<br>
+                    2. Plaats een batch op de secundaire markt voor verwerkers<br>
+                    3. Verwerking tot en met Retail kan de batch dan kopen
+                </div>
+                <button class="button" style="background: #10b981;" onclick="cooperativeLoadMyBatches()">🔄 Ververs Mijn Batches</button>
+                <div id="cooperative-my-batches"></div>
+            </div>
+        </div>
+
+        <!-- PROCESSING TO RETAIL DASHBOARD -->
+        <div id="dashboard-processing" class="dashboard">
             <div class="card">
-                <h2>1. Batch Status Updaten</h2>
-                <div class="alert alert-info">
-                    <strong>ℹ️ Info:</strong> Update de status van een batch na kwaliteitscontrole of verwerking.
+                <h2>🏭 Verwerking tot en met Retail Dashboard</h2>
+                <div class="task-list">
+                    <h3>📋 Uw Taken:</h3>
+                    <div class="task-item">🛒 Batches kopen van inkoop coöperaties</div>
+                    <div class="task-item">🏭 Katoen verwerken tot eindproduct</div>
+                    <div class="task-item">📊 Productie en kwaliteit monitoren</div>
+                    <div class="task-item">🛍️ Eindproducten naar retail distribueren</div>
+                    <div class="task-item">✅ Batch status bijwerken</div>
                 </div>
-                <div class="form-group">
-                    <label>Batch ID</label>
-                    <input type="number" id="coop-batch" placeholder="1">
-                </div>
-                <div class="form-group">
-                    <label>Nieuwe Status</label>
-                    <select id="coop-status">
-                        <option value="1">Verified (Geverifieerd)</option>
-                        <option value="2">In Transit (In Transport)</option>
-                        <option value="3">Quality Checked (Kwaliteit Gecontroleerd)</option>
-                        <option value="4">Delivered (Afgeleverd)</option>
-                        <option value="5">Completed (Compleet)</option>
-                    </select>
-                </div>
-                <button class="button button-success" onclick="cooperativeUpdateStatus()">✅ Update Status</button>
-                <div id="coop-status-result"></div>
             </div>
 
-            <div class="card">
-                <h2>2. Batch Details Bekijken</h2>
-                <div class="form-group">
-                    <label>Batch ID</label>
-                    <input type="number" id="coop-view-batch" placeholder="1">
+            <div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b;">
+                <h2 style="color: #92400e;">🛒 Secundaire Marktplaats - Batches van Coöperaties</h2>
+                <div class="alert alert-info" style="background: white;">
+                    <strong>💡 Hoe werkt het?</strong><br>
+                    1. Inkoop Coöperaties plaatsen hun gekochte en goedgekeurde batches hier<br>
+                    2. Jij bekijkt de markt en kiest welke batch je wilt kopen<br>
+                    3. Bij aankoop wordt de batch eigendom overgedragen<br>
+                    4. Je kunt de batch dan verder verwerken tot retail producten
                 </div>
-                <button class="button" onclick="cooperativeViewBatch()">🔍 Bekijk Details</button>
-                <div id="coop-view-result"></div>
+                <button class="button" style="background: #f59e0b;" onclick="processingLoadMarket()">🔄 Ververs Secundaire Markt</button>
+                <div id="processing-market"></div>
             </div>
         </div>
     </div>
@@ -415,3 +427,4 @@
     <script src="stakeholder-app.js"></script>
 </body>
 </html>
+

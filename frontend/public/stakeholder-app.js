@@ -6,8 +6,9 @@ const TEST_ACCOUNTS = [
     { address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", key: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", role: "Boer", type: "farmer" },
     { address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a", role: "Transporteur", type: "transporter" },
     { address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906", key: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6", role: "Certificeerder", type: "certifier" },
-    { address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", key: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba", role: "Transport", type: "transport" },
-    { address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", role: "Inkoop Coöperatie", type: "cooperative" }
+    null, // Account #4 - Niet gebruikt
+    { address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", role: "Inkoop Coöperatie", type: "cooperative" },
+    { address: "0x976EA74026E726554dB657fA54763abd0C3a0aa9", key: "0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e", role: "Verwerking t/m Retail", type: "processing" }
 ];
 
 const CONTRACTS = {
@@ -20,6 +21,7 @@ const USDT_ABI = [
     "function balanceOf(address) view returns (uint256)",
     "function decimals() view returns (uint8)",
     "function approve(address spender, uint256 amount) returns (bool)",
+    "function transfer(address to, uint256 amount) returns (bool)",
     "function faucet()",
     "function mint(address to, uint256 amount)"
 ];
@@ -206,7 +208,8 @@ async function selectCustomRole() {
             'farmer': { dashboard: 'farmer', name: 'Boer' },
             'transporter': { dashboard: 'transporter', name: 'Transporteur' },
             'certifier': { dashboard: 'certifier', name: 'Certificeerder' },
-            'cooperative': { dashboard: 'cooperative', name: 'Inkoop Coöperatie' }
+            'cooperative': { dashboard: 'cooperative', name: 'Inkoop Coöperatie' },
+            'processing': { dashboard: 'processing', name: 'Verwerking t/m Retail' }
         };
         
         const mapping = typeMapping[didInfo.didType] || typeMapping['farmer'];
@@ -803,33 +806,16 @@ async function transporterTrack() {
         if (iotCount == 0) {
             showInfo(result, '📡 Geen IoT data gevonden. Supply chain route simuleren...');
             
-            // Complete supply chain route with transport stages
+            // Simple 3-stage route: Farm → Transport → Mumbai Storage
             const supplyChainRoute = [
-                // Stage 1: Boer → Inkoopcoöperatie (lokaal transport)
-                { stage: "Boer → Inkoopcoöperatie", location: "Farm Gujarat, India", temp: [25, 30], humidity: [50, 60] },
-                { stage: "Boer → Inkoopcoöperatie", location: "Transport Gujarat", temp: [28, 35], humidity: [45, 55] },
-                { stage: "Boer → Inkoopcoöperatie", location: "Inkoopcoöperatie Gujarat", temp: [22, 28], humidity: [50, 60] },
+                // Stage 1: Farm origin location
+                { stage: "Boer Locatie", location: batch.origin, temp: [25, 30], humidity: [50, 60] },
                 
-                // Stage 2: Inkoopcoöperatie → Opslagfaciliteit (regionaal transport)
-                { stage: "Inkoopcoöperatie → Opslagfaciliteit", location: "Transport Maharashtra", temp: [26, 32], humidity: [48, 58] },
-                { stage: "Inkoopcoöperatie → Opslagfaciliteit", location: "Opslagfaciliteit Maharashtra", temp: [20, 25], humidity: [52, 62] },
+                // Stage 2: Transport to Mumbai
+                { stage: "Transport naar Mumbai", location: "Transport Maharashtra, India", temp: [28, 34], humidity: [55, 70] },
                 
-                // Stage 3: Opslagfaciliteit → Haven (nationaal transport)
-                { stage: "Opslagfaciliteit → Haven", location: "Transport naar Mumbai", temp: [28, 34], humidity: [55, 70] },
-                { stage: "Opslagfaciliteit → Haven", location: "Mumbai Port India", temp: [30, 35], humidity: [60, 75] },
-                
-                // Stage 4: Zeevracht (internationaal transport)
-                { stage: "Zeevracht", location: "Arabian Sea", temp: [25, 30], humidity: [65, 75] },
-                { stage: "Zeevracht", location: "Indian Ocean", temp: [24, 29], humidity: [65, 75] },
-                { stage: "Zeevracht", location: "Red Sea", temp: [26, 32], humidity: [60, 70] },
-                { stage: "Zeevracht", location: "Suez Canal", temp: [25, 31], humidity: [55, 65] },
-                { stage: "Zeevracht", location: "Mediterranean Sea", temp: [20, 26], humidity: [60, 70] },
-                { stage: "Zeevracht", location: "Atlantic Ocean", temp: [18, 24], humidity: [65, 75] },
-                
-                // Stage 5: Haven Nederland → Verwerker (lokaal transport NL)
-                { stage: "Haven → Verwerker", location: "Rotterdam Port Netherlands", temp: [15, 20], humidity: [70, 80] },
-                { stage: "Haven → Verwerker", location: "Transport Rotterdam", temp: [16, 22], humidity: [68, 78] },
-                { stage: "Haven → Verwerker", location: "Verwerker Netherlands", temp: [18, 22], humidity: [65, 75] }
+                // Stage 3: Mumbai storage facility
+                { stage: "Opslag Mumbai", location: "Opslag Mumbai, India", temp: [22, 28], humidity: [52, 62] }
             ];
             
             // Prepare arrays for batch IoT data
@@ -1543,4 +1529,391 @@ function showInfo(element, message) {
     element.innerHTML = `<div class="alert alert-info">ℹ️ ${message}</div>`;
 }
 
+// ========== COOPERATIVE - SECONDARY MARKET FUNCTIONS ==========
+
+async function cooperativeLoadMyBatches() {
+    const result = document.getElementById('cooperative-my-batches');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Laden van je batches...</p></div>';
+    
+    try {
+        const reservedBatches = await marketplace.getReservedBatches();
+        
+        // Filter batches owned by current account that are certified and approved
+        const myApprovedBatches = [];
+        for (const batchId of reservedBatches) {
+            const batch = await dpp.getBatch(batchId);
+            const marketData = await marketplace.getBatchMarketData(batchId);
+            
+            const status = Number(batch.status);
+            const iStillOwnIt = batch.currentOwner.toLowerCase() === currentAccount.toLowerCase();
+            
+            // Batches can be sold if:
+            // - Status 0 or 2: Just certified, not yet transported
+            // - Status 6: Delivered by transporter
+            // NOT if status 5 (claimed by processing) or 7 (already on secondary market)
+            const canBeSold = (status === 0 || status === 2 || status === 6);
+            
+            console.log(`Batch ${batchId} check:`, {
+                buyer: marketData.buyer,
+                currentAccount: currentAccount,
+                isBuyer: marketData.buyer.toLowerCase() === currentAccount.toLowerCase(),
+                certified: marketData.certified,
+                rejected: marketData.rejected,
+                status: status,
+                currentOwner: batch.currentOwner,
+                iStillOwnIt: iStillOwnIt,
+                canBeSold: canBeSold,
+                passesFilter: (
+                    marketData.buyer.toLowerCase() === currentAccount.toLowerCase() &&
+                    marketData.certified && 
+                    !marketData.rejected &&
+                    canBeSold
+                )
+            });
+            
+            // Show batches where:
+            // 1. Current account is buyer (gekocht door deze cooperative)
+            // 2. Batch is certified and approved
+            // 3. Batch can be sold (status 0, 2, or 6 - not yet claimed by processing)
+            
+            if (marketData.buyer.toLowerCase() === currentAccount.toLowerCase() &&
+                marketData.certified && 
+                !marketData.rejected &&
+                canBeSold) {
+                myApprovedBatches.push({ id: batchId, batch, marketData });
+            }
+        }
+        
+        if (myApprovedBatches.length === 0) {
+            result.innerHTML = '<div class="alert alert-info">📭 Je hebt nog geen goedgekeurde batches die je kunt doorverkopen.</div>';
+            return;
+        }
+        
+        let html = '<div class="batch-list">';
+        
+        for (const { id, batch, marketData } of myApprovedBatches) {
+            const quality = Number(batch.quality);
+            const weight = Number(batch.weight);
+            const statusNum = Number(batch.status);
+            const statusNames = ['Created', 'Reserved', 'Verified', 'Rejected', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
+            const currentStatus = statusNames[statusNum] || 'Unknown';
+            
+            // Calculate purchase price and resale price with 10% markup
+            const purchasePrice = Number(ethers.formatUnits(marketData.escrowAmount, 6));
+            const resalePrice = (purchasePrice * 1.10).toFixed(2); // 10% markup
+            const markup = (purchasePrice * 0.10).toFixed(2);
+            
+            html += `
+                <div class="batch-item" style="border-left: 4px solid #10b981;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 16px;">🌾 Batch #${id}</strong>
+                            <div style="margin-top: 8px; color: #666;">
+                                <strong>Oorspronkelijke Boer:</strong> ${batch.farmer.substring(0,10)}...${batch.farmer.substring(38)}<br>
+                                <strong>Gewicht:</strong> ${weight} kg<br>
+                                <strong>Kwaliteit:</strong> ${quality}/100<br>
+                                <strong>Herkomst:</strong> ${batch.origin}<br>
+                                <strong>Huidige Eigenaar:</strong> ${batch.currentOwner.substring(0,10)}...${batch.currentOwner.substring(38)}<br>
+                                <strong>Status:</strong> <span class="status-badge status-verified">✅ ${currentStatus} (${statusNum})</span><br>
+                                <div style="margin-top: 10px; padding: 10px; background: #f0fdf4; border-radius: 6px; border: 1px solid #86efac;">
+                                    <strong>💰 Prijsinformatie:</strong><br>
+                                    • Inkoopprijs: ${purchasePrice.toFixed(2)} USDT<br>
+                                    • Verkoopprijs (10% markup): <strong style="color: #059669; font-size: 16px;">${resalePrice} USDT</strong><br>
+                                    • Jouw winst: <strong style="color: #10b981;">+${markup} USDT</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="button button-success" onclick="cooperativePutOnSecondaryMarket(${id})" style="min-width: 180px;">
+                                📤 Plaats op Markt
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        result.innerHTML = html;
+        
+    } catch (error) {
+        console.error("❌ Load my batches error:", error);
+        showError(result, error.message);
+    }
+}
+
+async function cooperativePutOnSecondaryMarket(batchId) {
+    const result = document.getElementById('cooperative-my-batches');
+    
+    if (!confirm(`Weet je zeker dat je Batch #${batchId} beschikbaar wilt maken voor verwerkers?\n\nLet op: Dit markeert de batch als "Completed" zodat verwerkers hem kunnen zien.`)) {
+        return;
+    }
+    
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'alert alert-info';
+    loadingDiv.innerHTML = '⏳ Batch beschikbaar maken voor verwerking...';
+    result.insertBefore(loadingDiv, result.firstChild);
+    
+    try {
+        // Status 7 = Completed (was 5 in oude code, maar enum heeft Reserved/Verified/Rejected tussendoor)
+        const tx = await dpp.updateBatchStatus(batchId, 7);
+        await tx.wait();
+        
+        loadingDiv.className = 'alert alert-success';
+        loadingDiv.innerHTML = `
+            ✅ Batch #${batchId} is nu beschikbaar voor verwerkers!<br>
+            📋 Status: Completed<br>
+            🏭 Verwerkers kunnen deze batch nu zien
+        `;
+        
+        await cooperativeLoadMyBatches();
+        
+    } catch (error) {
+        console.error("❌ Put on secondary market error:", error);
+        loadingDiv.className = 'alert alert-error';
+        loadingDiv.innerHTML = `❌ Fout: ${error.message}<br><br>
+            <strong>💡 Alternatief:</strong> Gebruik de "Batch Status Updaten" sectie hieronder om de status handmatig naar "Completed" te zetten.`;
+    }
+}
+
+// ========== PROCESSING DASHBOARD FUNCTIONS ==========
+
+async function processingLoadMarket() {
+    const result = document.getElementById('processing-market');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Laden secundaire markt...</p></div>';
+    
+    try {
+        const reservedBatches = await marketplace.getReservedBatches();
+        
+        // Filter batches that are certified and completed (ready for processing)
+        const availableBatches = [];
+        for (const batchId of reservedBatches) {
+            const batch = await dpp.getBatch(batchId);
+            const marketData = await marketplace.getBatchMarketData(batchId);
+            
+            // Show batches that:
+            // 1. Are certified and approved
+            // 2. Are in Completed status (status 7 - ready for processing)
+            // 3. Current owner is the cooperative (buyer)
+            if (marketData.certified && 
+                !marketData.rejected &&
+                Number(batch.status) === 7) { // Status 7 = Completed (beschikbaar voor verwerking)
+                availableBatches.push({ id: batchId, batch, marketData });
+            }
+        }
+        
+        if (availableBatches.length === 0) {
+            result.innerHTML = '<div class="alert alert-info">📭 Geen batches beschikbaar op de secundaire markt. Wacht tot coöperaties hun batches beschikbaar stellen.</div>';
+            return;
+        }
+        
+        let html = '<div class="batch-list">';
+        
+        for (const { id, batch, marketData } of availableBatches) {
+            const quality = Number(batch.quality);
+            const weight = Number(batch.weight);
+            
+            // Calculate original purchase price and resale price with 10% markup
+            const originalPrice = Number(ethers.formatUnits(marketData.escrowAmount, 6));
+            const resalePrice = (originalPrice * 1.10).toFixed(2); // 10% markup
+            const pricePerKg = (resalePrice / weight).toFixed(2);
+            
+            html += `
+                <div class="batch-item" style="border-left: 4px solid #f59e0b;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="flex: 1;">
+                            <strong style="font-size: 16px;">🌾 Batch #${id}</strong>
+                            <div style="margin-top: 8px; color: #666;">
+                                <strong>Aangeboden door:</strong> ${marketData.buyer.substring(0,10)}...${marketData.buyer.substring(38)} (Coöperatie)<br>
+                                <strong>Oorspronkelijke Boer:</strong> ${batch.farmer.substring(0,10)}...${batch.farmer.substring(38)}<br>
+                                <strong>Gewicht:</strong> ${weight} kg<br>
+                                <strong>Kwaliteit:</strong> ${quality}/100<br>
+                                <strong>Herkomst:</strong> ${batch.origin}<br>
+                                <strong>Status:</strong> <span class="status-badge status-completed">✅ Beschikbaar voor Verwerking</span><br>
+                                <div style="margin-top: 10px; padding: 10px; background: #fffbeb; border-radius: 6px; border: 1px solid #fbbf24;">
+                                    <strong>💰 Prijsinformatie:</strong><br>
+                                    • Prijs per kg: ${pricePerKg} USDT<br>
+                                    • <strong style="color: #f59e0b; font-size: 16px;">Totaalprijs: ${resalePrice} USDT</strong><br>
+                                    <small style="color: #92400e;">Inclusief 10% coöperatie markup</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <button class="button button-warning" onclick="processingClaimBatch(${id})" style="min-width: 150px;">
+                                💰 Koop Batch
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+        result.innerHTML = html;
+        
+    } catch (error) {
+        console.error("❌ Load processing market error:", error);
+        showError(result, error.message);
+    }
+}
+
+async function processingClaimBatch(batchId) {
+    const result = document.getElementById('processing-market');
+    
+    try {
+        // First, get batch and market data to calculate price
+        const batch = await dpp.getBatch(batchId);
+        const marketData = await marketplace.getBatchMarketData(batchId);
+        const originalPrice = marketData.escrowAmount; // in wei (6 decimals)
+        const resalePrice = (Number(ethers.formatUnits(originalPrice, 6)) * 1.10).toFixed(2);
+        const resalePriceWei = ethers.parseUnits(resalePrice, 6);
+        
+        if (!confirm(`Weet je zeker dat je Batch #${batchId} wilt kopen voor ${resalePrice} USDT?\n\nDit bedrag wordt betaald aan de coöperatie (${marketData.buyer}).`)) {
+            return;
+        }
+        
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'alert alert-info';
+        loadingDiv.innerHTML = '⏳ Batch kopen...';
+        result.insertBefore(loadingDiv, result.firstChild);
+        
+        // Step 1: Approve USDT
+        loadingDiv.innerHTML = '⏳ Stap 1/3: USDT goedkeuring...';
+        const approveTx = await usdt.approve(marketData.buyer, resalePriceWei);
+        await approveTx.wait();
+        
+        // Step 2: Transfer USDT to cooperative
+        loadingDiv.innerHTML = '⏳ Stap 2/3: Betaling naar coöperatie...';
+        const transferTx = await usdt.transfer(marketData.buyer, resalePriceWei);
+        await transferTx.wait();
+        
+        // Step 3: Claim batch by updating status
+        loadingDiv.innerHTML = '⏳ Stap 3/4: Batch claimen...';
+        const tx = await dpp.updateBatchStatus(batchId, 5); // Status 5 = QualityChecked
+        await tx.wait();
+        
+        // Step 4: Add IoT records for transport from Mumbai to New Delhi
+        loadingDiv.innerHTML = '⏳ Stap 4/4: IoT tracking toevoegen (Mumbai → New Delhi)...';
+        
+        // 3 IoT records: Mumbai storage → Transport → New Delhi processing facility
+        const transportRoute = [
+            { location: "Opslag Mumbai, India", temp: 24, humidity: 58 },
+            { location: "Transport naar New Delhi, India", temp: 30, humidity: 45 },
+            { location: "Verwerkingsfaciliteit New Delhi, India", temp: 22, humidity: 50 }
+        ];
+        
+        const temperatures = transportRoute.map(r => r.temp);
+        const humidities = transportRoute.map(r => r.humidity);
+        const locations = transportRoute.map(r => r.location);
+        
+        const iotTx = await dpp.addBatchIoTData(batchId, temperatures, humidities, locations);
+        await iotTx.wait();
+        
+        loadingDiv.className = 'alert alert-success';
+        loadingDiv.innerHTML = `
+            ✅ Batch #${batchId} succesvol gekocht en geclaimd!<br>
+            💰 ${resalePrice} USDT betaald aan coöperatie<br>
+            📡 3 IoT records toegevoegd: Mumbai → New Delhi<br>
+            🏭 Status: Quality Checked - In Verwerking<br>
+            📋 Je kunt nu de batch verder verwerken
+        `;
+        
+        await updateBalances();
+        await processingLoadMarket();
+        
+    } catch (error) {
+        console.error("❌ Claim batch error:", error);
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'alert alert-error';
+        loadingDiv.innerHTML = `❌ Fout bij kopen: ${error.message}`;
+        result.insertBefore(loadingDiv, result.firstChild);
+    }
+}
+
+async function processingUpdateStatus() {
+    const result = document.getElementById('proc-status-result');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    try {
+        const batchId = document.getElementById('proc-batch').value;
+        const status = document.getElementById('proc-status').value;
+        
+        if (!batchId || !status) throw new Error("Alle velden verplicht!");
+        
+        const tx = await dpp.updateBatchStatus(batchId, status);
+        showInfo(result, `Transaction: ${tx.hash}`);
+        
+        await tx.wait();
+        
+        const statusNames = ['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
+        showSuccess(result, `✅ Batch #${batchId} status: ${statusNames[status]}`);
+    } catch (error) {
+        console.error("❌ Update status error:", error);
+        showError(result, error.message);
+    }
+}
+
+async function processingViewBatch() {
+    const result = document.getElementById('proc-view-result');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    try {
+        const batchId = document.getElementById('proc-view-batch').value;
+        if (!batchId) throw new Error("Batch ID verplicht!");
+        
+        const batch = await dpp.getBatch(batchId);
+        const marketData = await marketplace.getBatchMarketData(batchId);
+        
+        const statusNames = ['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
+        
+        let html = `
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 15px;">
+                <h3 style="margin-top: 0;">🌾 Batch #${batchId}</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>Boer</strong>
+                        <span>${batch.farmer}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Gewicht</strong>
+                        <span>${Number(batch.weight)} kg</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Kwaliteit</strong>
+                        <span>${Number(batch.quality)}/100</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Herkomst</strong>
+                        <span>${batch.origin}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Status</strong>
+                        <span>${statusNames[Number(batch.status)]}</span>
+                    </div>
+                    <div class="info-item">
+                        <strong>Huidige Eigenaar</strong>
+                        <span>${batch.currentOwner}</span>
+                    </div>
+                </div>
+        `;
+        
+        if (marketData.certified) {
+            html += `
+                <div style="margin-top: 15px; padding: 15px; background: #d1fae5; border-radius: 8px;">
+                    <strong>✅ Gecertificeerd door:</strong> ${marketData.certifier}<br>
+                    <strong>Gekocht door:</strong> ${marketData.buyer}
+                </div>
+            `;
+        }
+        
+        html += `</div>`;
+        result.innerHTML = html;
+        
+    } catch (error) {
+        console.error("❌ View batch error:", error);
+        showError(result, error.message);
+    }
+}
+
 console.log("✅ Stakeholder app loaded!");
+
