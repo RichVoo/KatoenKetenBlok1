@@ -1,18 +1,23 @@
 // Configuration
 const RPC_URL = "http://localhost:8545";
-const CONTRACT_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // IntegratedCottonDPP
+const DPP_ADDRESS = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"; // CottonDPP
+const MARKETPLACE_ADDRESS = "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"; // CottonMarketplace
 
 const DPP_ABI = [
-    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)",
+    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds)",
     "function getIoTDataCount(uint256 batchId) view returns (uint256)",
     "function getIoTData(uint256 batchId, uint256 index) view returns (int256 temperature, uint256 humidity, string location, uint256 timestamp, address recorder)",
-    "function getBatchPayments(uint256) view returns (tuple(address from, address to, uint256 amount, uint256 batchId, string reason, uint256 timestamp)[])",
     "function dids(address) view returns (string identifier, string publicKey, string didType, uint256 registered, bool active)",
     "function getSubjectVCs(address subject) view returns (uint256[])",
     "function getCredential(uint256 vcId) view returns (uint256 id, address issuer, address subject, string credentialType, string data, uint256 issuedAt, uint256 expiresAt, bool revoked)"
 ];
 
-let provider, contract;
+const MARKETPLACE_ABI = [
+    "function getBatchMarketData(uint256) view returns (bool onMarket, address buyer, uint256 escrowAmount, uint256 farmerAmount, uint256 certifierFee, uint256 transporterFee, uint256 farmerEscrow, address certifier, address transporter, bool certified, bool rejected, bool certifierPaid, bool transporterPaid)",
+    "function getBatchPayments(uint256) view returns (tuple(address from, address to, uint256 amount, uint256 batchId, string reason, uint256 timestamp)[])"
+];
+
+let provider, dppContract, marketplaceContract;
 
 const STATUS_NAMES = ['Created', 'Reserved', 'Verified', 'Rejected', 'In Transit', 'Quality Checked', 'Delivered', 'Completed'];
 const STATUS_ICONS = ['🌱', '💰', '✅', '❌', '🚛', '🔬', '📦', '✔️'];
@@ -35,7 +40,7 @@ window.addEventListener('load', async () => {
         statusDiv.style.background = '#d1fae5';
         statusDiv.style.border = '2px solid #10b981';
         statusDiv.style.color = '#065f46';
-        statusDiv.innerHTML = '✅ Verbonden met blockchain! Contract: ' + CONTRACT_ADDRESS.substring(0, 10) + '...';
+        statusDiv.innerHTML = '✅ Verbonden met blockchain! DPP: ' + DPP_ADDRESS.substring(0, 10) + '... | Marketplace: ' + MARKETPLACE_ADDRESS.substring(0, 10) + '...';
         setTimeout(() => statusDiv.style.display = 'none', 3000);
     } else if (statusDiv) {
         statusDiv.style.background = '#fee2e2';
@@ -58,14 +63,16 @@ async function init() {
     try {
         console.log("🔄 Initializing connection to blockchain...");
         console.log("RPC URL:", RPC_URL);
-        console.log("Contract Address:", CONTRACT_ADDRESS);
+        console.log("DPP Address:", DPP_ADDRESS);
+        console.log("Marketplace Address:", MARKETPLACE_ADDRESS);
         
         // Use ethers v6 syntax (JsonRpcProvider instead of providers.JsonRpcProvider)
         provider = new ethers.JsonRpcProvider(RPC_URL);
         console.log("✅ Provider created:", provider);
         
-        contract = new ethers.Contract(CONTRACT_ADDRESS, DPP_ABI, provider);
-        console.log("✅ Contract created:", contract);
+        dppContract = new ethers.Contract(DPP_ADDRESS, DPP_ABI, provider);
+        marketplaceContract = new ethers.Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
+        console.log("✅ Contracts created");
         
         // Test connection
         const network = await provider.getNetwork();
@@ -94,23 +101,30 @@ async function loadDPP() {
     document.getElementById('loadingDiv').classList.add('active');
 
     try {
-        // Ensure provider and contract are initialized
-        if (!provider || !contract) {
-            console.log("⚠️ Provider/Contract not initialized, calling init()...");
+        // Ensure provider and contracts are initialized
+        if (!provider || !dppContract || !marketplaceContract) {
+            console.log("⚠️ Provider/Contracts not initialized, calling init()...");
             const success = await init();
-            if (!success || !contract) {
+            if (!success || !dppContract || !marketplaceContract) {
                 throw new Error("Failed to initialize blockchain connection");
             }
         }
         
         console.log("📡 Fetching batch #" + batchId);
-        console.log("Contract object:", contract);
-        console.log("Contract address:", await contract.getAddress());
+        console.log("DPP Contract:", await dppContract.getAddress());
+        console.log("Marketplace Contract:", await marketplaceContract.getAddress());
         
-        // Get batch data
-        const batch = await contract.getBatch(batchId);
-        const iotCount = await contract.getIoTDataCount(batchId);
-        const payments = await contract.getBatchPayments(batchId);
+        // Get batch data from both contracts
+        const batch = await dppContract.getBatch(batchId);
+        const marketData = await marketplaceContract.getBatchMarketData(batchId);
+        const iotCount = await dppContract.getIoTDataCount(batchId);
+        const payments = await marketplaceContract.getBatchPayments(batchId);
+        
+        console.log("✅ Batch data received:", batch);
+        console.log("✅ Market data received:", marketData);
+        console.log("✅ IoT records:", iotCount.toString());
+        console.log("✅ Payment history:", payments);
+
 
         // Helper function to get stakeholder info
         async function getStakeholderInfo(address, defaultName = "Onbekend") {
@@ -144,7 +158,7 @@ async function loadDPP() {
         };
         
         try {
-            const farmerDID = await contract.dids(batch.farmer);
+            const farmerDID = await dppContract.dids(batch.farmer);
             if (farmerDID.active) {
                 const stakeholderInfo = await getStakeholderInfo(batch.farmer, "Boer");
                 farmerInfo.naam = stakeholderInfo.naam;
@@ -161,11 +175,11 @@ async function loadDPP() {
         let farmerVCs = [];
         let vcCertificates = "Geen certificaten";
         try {
-            const vcIds = await contract.getSubjectVCs(batch.farmer);
+            const vcIds = await dppContract.getSubjectVCs(batch.farmer);
             console.log("📋 Farmer has", vcIds.length, "VCs");
             
             for (const vcId of vcIds) {
-                const vc = await contract.getCredential(vcId);
+                const vc = await dppContract.getCredential(vcId);
                 
                 // Parse data to get real expiry date
                 let realExpiryDate = null;
@@ -277,37 +291,37 @@ async function loadDPP() {
                         <span class="detail-label">Status:</span>
                         <span class="status-badge success">${STATUS_ICONS[batch.status]} ${STATUS_NAMES[batch.status]}</span>
                     </div>
-                    ${batch.status === 1 && Number(batch.escrowAmount) > 0 ? `
+                    ${batch.status === 1 && Number(marketData.escrowAmount) > 0 ? `
                     <div class="detail-row" style="background: #dbeafe; padding: 15px; border-radius: 8px; margin-top: 10px;">
                         <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
                             <div style="color: #1e40af; font-weight: 600; font-size: 15px;">💰 Escrow Status</div>
                             <div style="color: #3b82f6; font-size: 14px;">
-                                <strong>Bedrag in Escrow:</strong> ${(Number(batch.escrowAmount) / 1000000).toFixed(2)} USDT<br>
-                                <strong>Gekocht door:</strong> ${batch.buyer.substring(0,10)}...${batch.buyer.substring(38)}<br>
+                                <strong>Bedrag in Escrow:</strong> ${(Number(marketData.escrowAmount) / 1000000).toFixed(2)} USDT<br>
+                                <strong>Gekocht door:</strong> ${marketData.buyer.substring(0,10)}...${marketData.buyer.substring(38)}<br>
                                 <strong>Status:</strong> ⏳ Wacht op certificering
                             </div>
                         </div>
                     </div>
                     ` : ''}
-                    ${batch.status === 2 && batch.certified ? `
+                    ${batch.status === 2 && marketData.certified ? `
                     <div class="detail-row" style="background: #d1fae5; padding: 15px; border-radius: 8px; margin-top: 10px;">
                         <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
                             <div style="color: #065f46; font-weight: 600; font-size: 15px;">✅ Betaling Voltooid</div>
                             <div style="color: #059669; font-size: 14px;">
-                                <strong>Escrow Uitbetaald:</strong> ${Number(batch.escrowAmount) > 0 ? (Number(batch.escrowAmount) / 1000000).toFixed(2) + ' USDT' : 'N/A'}<br>
+                                <strong>Escrow Uitbetaald:</strong> ${Number(marketData.escrowAmount) > 0 ? (Number(marketData.escrowAmount) / 1000000).toFixed(2) + ' USDT' : 'N/A'}<br>
                                 <strong>Gecertificeerd:</strong> ✅ Ja<br>
                                 <strong>Betaald aan:</strong> Boer
                             </div>
                         </div>
                     </div>
                     ` : ''}
-                    ${batch.status === 3 && batch.rejected ? `
+                    ${batch.status === 3 && marketData.rejected ? `
                     <div class="detail-row" style="background: #fef3c7; padding: 15px; border-radius: 8px; margin-top: 10px;">
                         <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
                             <div style="color: #92400e; font-weight: 600; font-size: 15px;">❌ Batch Afgekeurd</div>
                             <div style="color: #d97706; font-size: 14px;">
-                                <strong>Escrow Teruggestort:</strong> ${Number(batch.escrowAmount) > 0 ? (Number(batch.escrowAmount) / 1000000).toFixed(2) + ' USDT' : 'N/A'}<br>
-                                <strong>Teruggestort aan:</strong> ${batch.buyer.substring(0,10)}...${batch.buyer.substring(38)}<br>
+                                <strong>Escrow Teruggestort:</strong> ${Number(marketData.escrowAmount) > 0 ? (Number(marketData.escrowAmount) / 1000000).toFixed(2) + ' USDT' : 'N/A'}<br>
+                                <strong>Teruggestort aan:</strong> ${marketData.buyer.substring(0,10)}...${marketData.buyer.substring(38)}<br>
                                 <strong>Status:</strong> Terug op markt
                             </div>
                         </div>
@@ -670,8 +684,8 @@ async function loadDPP() {
         if (Number(iotCount.toString()) > 0) {
             // Get first and last IoT record
             const iotCountNum = Number(iotCount.toString());
-            const firstIoT = await contract.getIoTData(batchId, 0);
-            const lastIoT = await contract.getIoTData(batchId, iotCountNum - 1);
+            const firstIoT = await dppContract.getIoTData(batchId, 0);
+            const lastIoT = await dppContract.getIoTData(batchId, iotCountNum - 1);
             
             const firstDate = new Date(Number(firstIoT.timestamp.toString()) * 1000);
             const lastDate = new Date(Number(lastIoT.timestamp.toString()) * 1000);
@@ -685,7 +699,7 @@ async function loadDPP() {
             let avgTemp = 0;
             
             for (let i = 0; i < iotCountNum; i++) {
-                const iot = await contract.getIoTData(batchId, i);
+                const iot = await dppContract.getIoTData(batchId, i);
                 const temp = Number(iot.temperature.toString());
                 minTemp = Math.min(minTemp, temp);
                 maxTemp = Math.max(maxTemp, temp);
@@ -738,7 +752,7 @@ async function loadDPP() {
 
             // Show all IoT records
             for (let i = 0; i < iotCountNum; i++) {
-                const iot = await contract.getIoTData(batchId, i);
+                const iot = await dppContract.getIoTData(batchId, i);
                 const iotDate = new Date(Number(iot.timestamp.toString()) * 1000);
                 
                 html += `
@@ -888,7 +902,8 @@ async function loadDPP() {
                 <p>
                     <strong>🔐 Blockchain Bevestiging</strong>
                     Dit Digital Product Passport is onveranderbaar vastgelegd op de blockchain.<br>
-                    Contract Address: ${CONTRACT_ADDRESS}<br>
+                    DPP Contract: ${DPP_ADDRESS}<br>
+                    Marketplace Contract: ${MARKETPLACE_ADDRESS}<br>
                     <strong>Batch #${batchId} is volledig traceerbaar en geverifieerd.</strong>
                 </p>
             </div>

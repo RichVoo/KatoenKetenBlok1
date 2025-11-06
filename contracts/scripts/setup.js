@@ -1,12 +1,12 @@
 const hre = require("hardhat");
 
 async function main() {
-  console.log("🔧 Setting up IntegratedCottonDPP with roles...\n");
+  console.log("🔧 Setting up CottonDPP & CottonMarketplace with roles...\n");
 
   // Get signers (Hardhat test accounts)
   const [admin, boer, transporteur, certificeerder, fabriek] = await hre.ethers.getSigners();
   
-  console.log("� Accounts:");
+  console.log("👥 Accounts:");
   console.log("Admin:         ", admin.address);
   console.log("Boer:          ", boer.address);
   console.log("Transporteur:  ", transporteur.address);
@@ -18,9 +18,10 @@ async function main() {
 
   // Get contract instances
   const usdt = await hre.ethers.getContractAt("USDTMock", addresses.USDT);
-  const dpp = await hre.ethers.getContractAt("IntegratedCottonDPP", addresses.IntegratedCottonDPP);
+  const dpp = await hre.ethers.getContractAt("CottonDPP", addresses.CottonDPP);
+  const marketplace = await hre.ethers.getContractAt("CottonMarketplace", addresses.CottonMarketplace);
 
-  console.log("\n🔐 Granting roles...");
+  console.log("\n🔐 Granting roles to CottonDPP...");
   
   // Grant FARMER_ROLE to boer
   const FARMER_ROLE = await dpp.FARMER_ROLE();
@@ -43,6 +44,24 @@ async function main() {
   // Grant FACTORY_ROLE to fabriek
   const FACTORY_ROLE = await dpp.FACTORY_ROLE();
   tx = await dpp.grantRole(FACTORY_ROLE, fabriek.address);
+  await tx.wait();
+  console.log("✅ FACTORY_ROLE granted to:", fabriek.address);
+
+  console.log("\n🔐 Granting roles to CottonMarketplace...");
+  
+  tx = await marketplace.grantRole(FARMER_ROLE, boer.address);
+  await tx.wait();
+  console.log("✅ FARMER_ROLE granted to:", boer.address);
+
+  tx = await marketplace.grantRole(TRANSPORTER_ROLE, transporteur.address);
+  await tx.wait();
+  console.log("✅ TRANSPORTER_ROLE granted to:", transporteur.address);
+
+  tx = await marketplace.grantRole(CERTIFIER_ROLE, certificeerder.address);
+  await tx.wait();
+  console.log("✅ CERTIFIER_ROLE granted to:", certificeerder.address);
+
+  tx = await marketplace.grantRole(FACTORY_ROLE, fabriek.address);
   await tx.wait();
   console.log("✅ FACTORY_ROLE granted to:", fabriek.address);
 

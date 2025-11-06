@@ -10,7 +10,7 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200
+        runs: 1  // Zeer lage waarde voor kleinere contract size
       },
       viaIR: true
     }

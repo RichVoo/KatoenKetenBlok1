@@ -7,12 +7,13 @@ const TEST_ACCOUNTS = [
     { address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", key: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a", role: "Transporteur", type: "transporter" },
     { address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906", key: "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6", role: "Certificeerder", type: "certifier" },
     { address: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", key: "0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba", role: "Transport", type: "transport" },
-    { address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", role: "Inkoop Coöperatie", type: "factory" }
+    { address: "0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65", key: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", role: "Inkoop Coöperatie", type: "cooperative" }
 ];
 
 const CONTRACTS = {
     USDT: "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-    IntegratedCottonDPP: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+    CottonDPP: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    CottonMarketplace: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0"
 };
 
 const USDT_ABI = [
@@ -26,35 +27,46 @@ const USDT_ABI = [
 const DPP_ABI = [
     "function registerDID(address controller, string publicKey, string didType)",
     "function issueCredential(address subject, string credentialType, string data, uint256 validityDays)",
-    "function createBatch(uint256 weight, uint256 initialQuality, string origin)",
+    "function createBatch(uint256 weight, uint256 initialQuality, string origin) returns (uint256)",
+    "function updateBatchStatus(uint256 batchId, uint8 newStatus)",
+    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds)",
+    "function getFarmerBatches(address) view returns (uint256[])",
     "function addIoTData(uint256 batchId, int256 temperature, uint256 humidity, string location)",
     "function addBatchIoTData(uint256 batchId, int256[] temperatures, uint256[] humidities, string[] locations)",
-    "function payQualityBonus(uint256 batchId)",
-    "function updateBatchStatus(uint256 batchId, uint8 newStatus)",
-    "function purchaseBatch(uint256 batchId)",
-    "function certifyBatch(uint256 batchId, bool approved)",
-    "function getMarketBatches() view returns (uint256[])",
-    "function getReservedBatches() view returns (uint256[])",
-    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)",
-    "function getFarmerBatches(address) view returns (uint256[])",
     "function getIoTData(uint256 batchId, uint256 index) view returns (int256 temperature, uint256 humidity, string location, uint256 timestamp, address recorder)",
     "function getIoTDataCount(uint256 batchId) view returns (uint256)",
-    "function getBatchPayments(uint256) view returns (tuple(address from, address to, uint256 amount, uint256 batchId, string reason, uint256 timestamp)[])",
     "function hasDID(address) view returns (bool)",
     "function dids(address) view returns (string identifier, string publicKey, string didType, uint256 registered, bool active)",
     "function getSubjectVCs(address subject) view returns (uint256[])",
     "function getCredential(uint256 vcId) view returns (uint256 id, address issuer, address subject, string credentialType, string data, uint256 issuedAt, uint256 expiresAt, bool revoked)",
+    "function attachVCToBatch(uint256 batchId, uint256 vcId)",
     "event DIDRegistered(address indexed controller, string identifier, string didType)",
     "event VCIssued(uint256 indexed vcId, address indexed issuer, address indexed subject, string credentialType)",
     "event BatchCreated(uint256 indexed batchId, address indexed farmer, uint256 weight, uint256 quality)",
-    "event IoTDataAdded(uint256 indexed batchId, int256 temperature, uint256 humidity, string location)",
-    "event BatchPurchased(uint256 indexed batchId, address indexed buyer, uint256 amount)",
-    "event BatchCertified(uint256 indexed batchId, bool approved)",
-    "event EscrowReleased(uint256 indexed batchId, address indexed farmer, uint256 amount)",
-    "event EscrowRefunded(uint256 indexed batchId, address indexed buyer, uint256 amount)"
+    "event IoTDataAdded(uint256 indexed batchId, int256 temperature, uint256 humidity, string location)"
 ];
 
-let provider, signer, currentAccount, usdt, dpp, currentRole;
+const MARKETPLACE_ABI = [
+    "function putBatchOnMarket(uint256 batchId)",
+    "function purchaseBatch(uint256 batchId)",
+    "function certifyBatch(uint256 batchId, bool approved)",
+    "function depositFarmerEscrow(uint256 amount)",
+    "function withdrawFarmerEscrow(uint256 amount)",
+    "function getFarmerEscrowBalance(address farmer) view returns (uint256)",
+    "function payTransporter(uint256 batchId)",
+    "function getMarketBatches() view returns (uint256[])",
+    "function getReservedBatches() view returns (uint256[])",
+    "function getBatchMarketData(uint256) view returns (bool onMarket, address buyer, uint256 escrowAmount, uint256 farmerAmount, uint256 certifierFee, uint256 transporterFee, uint256 farmerEscrow, address certifier, address transporter, bool certified, bool rejected, bool certifierPaid, bool transporterPaid)",
+    "function getBatchPayments(uint256) view returns (tuple(address from, address to, uint256 amount, uint256 batchId, string reason, uint256 timestamp)[])",
+    "event BatchPurchased(uint256 indexed batchId, address indexed buyer, uint256 amount)",
+    "event BatchCertified(uint256 indexed batchId, address indexed certifier, bool approved)",
+    "event EscrowReleased(uint256 indexed batchId, address indexed recipient, uint256 amount)",
+    "event EscrowRefunded(uint256 indexed batchId, address indexed buyer, uint256 amount)",
+    "event CertifierPaid(uint256 indexed batchId, address indexed certifier, uint256 amount)",
+    "event TransporterPaid(uint256 indexed batchId, address indexed transporter, uint256 amount)"
+];
+
+let provider, signer, currentAccount, usdt, dpp, marketplace, currentRole;
 
 window.addEventListener('load', async () => {
     await init();
@@ -144,7 +156,8 @@ function selectRole(roleType, accountIndex) {
     
     // Initialize contracts
     usdt = new ethers.Contract(CONTRACTS.USDT, USDT_ABI, signer);
-    dpp = new ethers.Contract(CONTRACTS.IntegratedCottonDPP, DPP_ABI, signer);
+    dpp = new ethers.Contract(CONTRACTS.CottonDPP, DPP_ABI, signer);
+    marketplace = new ethers.Contract(CONTRACTS.CottonMarketplace, MARKETPLACE_ABI, signer);
     
     // Update display
     document.getElementById('currentAccount').innerHTML = `${currentAccount.substring(0,10)}...${currentAccount.substring(38)}<br><small>${account.role}</small>`;
@@ -193,7 +206,7 @@ async function selectCustomRole() {
             'farmer': { dashboard: 'farmer', name: 'Boer' },
             'transporter': { dashboard: 'transporter', name: 'Transporteur' },
             'certifier': { dashboard: 'certifier', name: 'Certificeerder' },
-            'factory': { dashboard: 'factory', name: 'Inkoop Coöperatie' }
+            'cooperative': { dashboard: 'cooperative', name: 'Inkoop Coöperatie' }
         };
         
         const mapping = typeMapping[didInfo.didType] || typeMapping['farmer'];
@@ -220,7 +233,8 @@ async function selectCustomRole() {
     
     // Initialize contracts
     usdt = new ethers.Contract(CONTRACTS.USDT, USDT_ABI, signer);
-    dpp = new ethers.Contract(CONTRACTS.IntegratedCottonDPP, DPP_ABI, signer);
+    dpp = new ethers.Contract(CONTRACTS.CottonDPP, DPP_ABI, signer);
+    marketplace = new ethers.Contract(CONTRACTS.CottonMarketplace, MARKETPLACE_ABI, signer);
     
     // Update display with correct role name
     document.getElementById('currentAccount').innerHTML = `${currentAccount.substring(0,10)}...${currentAccount.substring(38)}<br><small>${roleDisplayName}</small>`;
@@ -231,6 +245,7 @@ async function selectCustomRole() {
     // Auto-load farmer data if custom wallet is a farmer
     if (actualRoleType === 'farmer') {
         farmerLoadVCs();
+        farmerRefreshEscrow(); // Load escrow balance automatically
     }
     
     console.log(`✅ Switched to custom wallet (${currentRole})`);
@@ -261,6 +276,48 @@ async function updateDIDStatus() {
     } catch (error) {
         console.error("❌ DID status error:", error);
     }
+}
+
+// ========== FEE CALCULATION HELPERS ==========
+
+/**
+ * Bereken transporteur fee: basis fee + vast bedrag per kilo
+ * Basis: 50 USDT + 0.20 USDT per kg
+ */
+function calculateTransporterFee(weight) {
+    const baseFee = 50;
+    const perKg = 0.20;
+    return baseFee + (weight * perKg);
+}
+
+/**
+ * Bereken certificeerder fee: basis fee + degressief tarief per kilo
+ * Basis: 100 USDT
+ * Degressieve tarieven:
+ * - 0-500 kg: 1.00 USDT/kg
+ * - 501-1000 kg: 0.80 USDT/kg  
+ * - 1001-2000 kg: 0.60 USDT/kg
+ * - 2001+ kg: 0.40 USDT/kg
+ */
+function calculateCertifierFee(weight) {
+    const baseFee = 100;
+    let variableFee = 0;
+    
+    if (weight <= 500) {
+        // 0-500 kg: 1.00 USDT/kg
+        variableFee = weight * 1.00;
+    } else if (weight <= 1000) {
+        // Eerste 500 kg @ 1.00, rest @ 0.80
+        variableFee = (500 * 1.00) + ((weight - 500) * 0.80);
+    } else if (weight <= 2000) {
+        // Eerste 500 @ 1.00, volgende 500 @ 0.80, rest @ 0.60
+        variableFee = (500 * 1.00) + (500 * 0.80) + ((weight - 1000) * 0.60);
+    } else {
+        // Eerste 500 @ 1.00, volgende 500 @ 0.80, volgende 1000 @ 0.60, rest @ 0.40
+        variableFee = (500 * 1.00) + (500 * 0.80) + (1000 * 0.60) + ((weight - 2000) * 0.40);
+    }
+    
+    return baseFee + variableFee;
 }
 
 // ========== ADMIN FUNCTIONS ==========
@@ -366,8 +423,26 @@ async function farmerCreateBatch() {
         
         if (!weight || !origin) throw new Error("Gewicht en herkomst verplicht!");
         
+        // Check farmer escrow balance
+        showInfo(result, '🔍 Checking escrow balance...');
+        const escrowBalance = await marketplace.getFarmerEscrowBalance(currentAccount);
+        
+        // Calculate required escrow for this batch (certificeerder fee)
+        const requiredEscrow = calculateCertifierFee(parseInt(weight));
+        const requiredEscrowWei = ethers.parseUnits(requiredEscrow.toFixed(2), 6);
+        
+        // Check if sufficient escrow
+        if (escrowBalance < requiredEscrowWei) {
+            const currentEscrow = ethers.formatUnits(escrowBalance, 6);
+            const neededEscrow = ethers.formatUnits(requiredEscrowWei, 6);
+            throw new Error(`❌ Onvoldoende escrow!\n\nHuidige escrow: ${currentEscrow} USDT\nVereist voor deze batch: ${neededEscrow} USDT (${weight}kg)\n\nStort minimaal ${(requiredEscrow - parseFloat(currentEscrow)).toFixed(2)} USDT extra via de Escrow Beheer sectie.`);
+        }
+        
+        showInfo(result, `✅ Escrow OK (${ethers.formatUnits(escrowBalance, 6)} USDT). Creating batch...`);
+        
+        // Create batch
+        showInfo(result, `⏳ Creating batch (${weight}kg, quality: ${quality})...`);
         const tx = await dpp.createBatch(weight, quality, origin);
-        showInfo(result, `Transaction: ${tx.hash}<br>Kwaliteit (random): ${quality}/100`);
         
         const receipt = await tx.wait();
         
@@ -384,11 +459,67 @@ async function farmerCreateBatch() {
             batchId = parsed.args.batchId.toString();
         }
         
-        showSuccess(result, `✅ Batch #${batchId} aangemaakt!<br>Gewicht: ${weight} kg | Kwaliteit: ${quality}/100 (random)<br><br><a href="dpp-viewer.html?batch=${batchId}" target="_blank" class="button button-success" style="text-decoration: none; display: inline-block; width: auto; padding: 12px 24px; margin-top: 10px;">📱 View Digital Product Passport</a>`);
+        // Put batch on market
+        showInfo(result, `⏳ Putting batch #${batchId} on market...`);
+        const marketTx = await marketplace.putBatchOnMarket(batchId);
+        await marketTx.wait();
+        
+        showSuccess(result, `✅ Batch #${batchId} aangemaakt en op markt gezet!<br>Gewicht: ${weight} kg | Kwaliteit: ${quality}/100 (random)<br>Escrow gereserveerd: ${requiredEscrow.toFixed(2)} USDT<br><br><a href="dpp-viewer.html?batch=${batchId}" target="_blank" class="button button-success" style="text-decoration: none; display: inline-block; width: auto; padding: 12px 24px; margin-top: 10px;">📱 View Digital Product Passport</a>`);
         await farmerLoadBatches();
+        await farmerRefreshEscrow();
+        await updateBalances();
     } catch (error) {
         console.error("❌ Create batch error:", error);
         showError(result, error.message);
+    }
+}
+
+async function farmerDepositEscrow() {
+    const result = document.getElementById('farmer-escrow-result');
+    result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    
+    try {
+        const amountInput = document.getElementById('farmer-escrow-amount');
+        const amount = amountInput.value;
+        
+        if (!amount || amount < 1000) {
+            throw new Error("Minimum stort bedrag is 1000 USDT!");
+        }
+        
+        const depositAmount = ethers.parseUnits(amount, 6);
+        
+        // Approve USDT
+        showInfo(result, '⏳ Step 1/2: Approving USDT...');
+        const approveTx = await usdt.approve(CONTRACTS.CottonMarketplace, depositAmount);
+        await approveTx.wait();
+        
+        // Deposit escrow
+        showInfo(result, `⏳ Step 2/2: Depositing ${amount} USDT to escrow...`);
+        const depositTx = await marketplace.depositFarmerEscrow(depositAmount);
+        await depositTx.wait();
+        
+        showSuccess(result, `✅ ${amount} USDT succesvol gestort in escrow!`);
+        await farmerRefreshEscrow();
+        await updateBalances();
+    } catch (error) {
+        console.error("❌ Deposit escrow error:", error);
+        showError(result, error.message);
+    }
+}
+
+async function farmerRefreshEscrow() {
+    if (!currentAccount) return;
+    
+    try {
+        const balance = await marketplace.getFarmerEscrowBalance(currentAccount);
+        const balanceFormatted = ethers.formatUnits(balance, 6);
+        const balanceElement = document.getElementById('farmer-escrow-balance');
+        if (balanceElement) {
+            balanceElement.textContent = parseFloat(balanceFormatted).toFixed(2);
+            balanceElement.style.color = parseFloat(balanceFormatted) >= 1000 ? '#10b981' : '#ef4444';
+        }
+    } catch (error) {
+        console.error("❌ Refresh escrow error:", error);
     }
 }
 
@@ -590,7 +721,65 @@ async function transporterAddIoT() {
             showInfo(result, `📡 Record ${recordsAdded}/${numRecords}: ${temp}°C, ${humidity}%, ${location}`);
         }
         
-        showSuccess(result, `✅ ${numRecords} IoT records toegevoegd aan Batch #${batchId}!<br>🌡️ Temp: 15-35°C | 💧 Humidity: 40-80%`);
+        showInfo(result, `✅ ${numRecords} IoT records toegevoegd!<br>💰 Transporteur betaling aanvragen...`);
+        
+        // Automatically pay transporter after adding IoT data
+        try {
+            console.log("🔍 [AUTO-PAYMENT] Starting automatic transporter payment for batch", batchId);
+            
+            const marketData = await marketplace.getBatchMarketData(batchId);
+            console.log("🔍 [AUTO-PAYMENT] Market data:", {
+                escrowAmount: ethers.formatUnits(marketData.escrowAmount, 6),
+                transporterPaid: marketData.transporterPaid,
+                transporterFee: ethers.formatUnits(marketData.transporterFee, 6),
+                certified: marketData.certified,
+                rejected: marketData.rejected
+            });
+            
+            // Check if already paid
+            if (marketData.transporterPaid) {
+                console.log("⚠️ [AUTO-PAYMENT] Transporteur already paid, skipping");
+                showSuccess(result, `✅ ${numRecords} IoT records toegevoegd aan Batch #${batchId}!<br>ℹ️ Transporteur was al betaald voor deze batch.`);
+                return;
+            }
+            
+            // Check if batch was purchased (has escrow)
+            const escrowAmount = Number(marketData.escrowAmount);
+            console.log("🔍 [AUTO-PAYMENT] Escrow amount:", escrowAmount);
+            if (escrowAmount === 0) {
+                console.log("⚠️ [AUTO-PAYMENT] No escrow available, skipping payment");
+                showSuccess(result, `✅ ${numRecords} IoT records toegevoegd aan Batch #${batchId}!<br>⚠️ Batch is nog niet gekocht - geen escrow beschikbaar voor betaling.`);
+                return;
+            }
+            
+            // Pay transporter
+            console.log("💰 [AUTO-PAYMENT] Calling marketplace.payTransporter()...");
+            const payTx = await marketplace.payTransporter(batchId);
+            console.log("⏳ [AUTO-PAYMENT] Waiting for transaction confirmation...");
+            await payTx.wait();
+            console.log("✅ [AUTO-PAYMENT] Transaction confirmed!");
+            
+            // Get payment amount
+            const updatedMarketData = await marketplace.getBatchMarketData(batchId);
+            const transporterFee = Number(ethers.formatUnits(updatedMarketData.transporterFee, 6));
+            console.log("💰 [AUTO-PAYMENT] Transporteur paid:", transporterFee, "USDT");
+            
+            showSuccess(result, `✅ ${numRecords} IoT records toegevoegd aan Batch #${batchId}!<br>💰 Transporteur betaald: ${transporterFee.toFixed(2)} USDT<br>🌡️ Temp: 15-35°C | 💧 Humidity: 40-80%`);
+            
+            await updateBalances();
+            
+        } catch (payError) {
+            // If payment fails, still show success for IoT data
+            console.error("❌ [AUTO-PAYMENT] Payment failed:", payError);
+            console.error("❌ [AUTO-PAYMENT] Error details:", {
+                message: payError.message,
+                code: payError.code,
+                reason: payError.reason,
+                transaction: payError.transaction
+            });
+            showSuccess(result, `✅ ${numRecords} IoT records toegevoegd aan Batch #${batchId}!<br>❌ Betaling mislukt: ${payError.message}`);
+        }
+        
     } catch (error) {
         console.error("❌ Add IoT error:", error);
         showError(result, error.message);
@@ -670,7 +859,62 @@ async function transporterTrack() {
             await tx.wait();
             
             iotCount = await dpp.getIoTDataCount(batchId);
-            showInfo(result, `✅ ${iotCount} IoT records toegevoegd in 1 transactie!`);
+            showInfo(result, `✅ ${iotCount} IoT records toegevoegd in 1 transactie!<br>💰 Transporteur betaling aanvragen...`);
+            
+            // Automatically pay transporter after adding IoT data
+            try {
+                console.log("🔍 [TRACK AUTO-PAY] Starting automatic transporter payment for batch", batchId);
+                
+                const marketData = await marketplace.getBatchMarketData(batchId);
+                console.log("🔍 [TRACK AUTO-PAY] Market data:", {
+                    escrowAmount: ethers.formatUnits(marketData.escrowAmount, 6),
+                    transporterPaid: marketData.transporterPaid,
+                    transporterFee: ethers.formatUnits(marketData.transporterFee, 6),
+                    certified: marketData.certified,
+                    rejected: marketData.rejected
+                });
+                
+                // Check if already paid
+                if (marketData.transporterPaid) {
+                    console.log("⚠️ [TRACK AUTO-PAY] Transporteur already paid, skipping");
+                    showInfo(result, `✅ ${iotCount} IoT records toegevoegd!<br>ℹ️ Transporteur was al betaald voor deze batch.`);
+                } else {
+                    // Check if batch was purchased (has escrow)
+                    const escrowAmount = Number(marketData.escrowAmount);
+                    console.log("🔍 [TRACK AUTO-PAY] Escrow amount:", escrowAmount);
+                    
+                    if (escrowAmount === 0) {
+                        console.log("⚠️ [TRACK AUTO-PAY] No escrow available, skipping payment");
+                        showInfo(result, `✅ ${iotCount} IoT records toegevoegd!<br>⚠️ Batch is nog niet gekocht - geen escrow beschikbaar voor betaling.`);
+                    } else {
+                        // Pay transporter
+                        console.log("💰 [TRACK AUTO-PAY] Calling marketplace.payTransporter()...");
+                        const payTx = await marketplace.payTransporter(batchId);
+                        console.log("⏳ [TRACK AUTO-PAY] Waiting for transaction confirmation...");
+                        await payTx.wait();
+                        console.log("✅ [TRACK AUTO-PAY] Transaction confirmed!");
+                        
+                        // Get payment amount
+                        const updatedMarketData = await marketplace.getBatchMarketData(batchId);
+                        const transporterFee = Number(ethers.formatUnits(updatedMarketData.transporterFee, 6));
+                        console.log("💰 [TRACK AUTO-PAY] Transporteur paid:", transporterFee, "USDT");
+                        
+                        showInfo(result, `✅ ${iotCount} IoT records toegevoegd!<br>💰 Transporteur betaald: ${transporterFee.toFixed(2)} USDT`);
+                        
+                        await updateBalances();
+                    }
+                }
+                
+            } catch (payError) {
+                console.error("❌ [TRACK AUTO-PAY] Payment failed:", payError);
+                console.error("❌ [TRACK AUTO-PAY] Error details:", {
+                    message: payError.message,
+                    code: payError.code,
+                    reason: payError.reason,
+                    transaction: payError.transaction
+                });
+                showInfo(result, `✅ ${iotCount} IoT records toegevoegd!<br>❌ Betaling mislukt: ${payError.message}`);
+            }
         }
         
         let html = `
@@ -712,15 +956,15 @@ async function transporterTrack() {
 // ========== CERTIFIER FUNCTIONS ==========
 // Legacy certifierIssueVC() function removed - use vc-aanvraag.html for VC issuance
 
-// ========== FACTORY FUNCTIONS ==========
+// ========== COOPERATIVE FUNCTIONS ==========
 
-async function factoryUpdateStatus() {
-    const result = document.getElementById('fact-status-result');
+async function cooperativeUpdateStatus() {
+    const result = document.getElementById('coop-status-result');
     result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     
     try {
-        const batchId = document.getElementById('fact-batch').value;
-        const status = document.getElementById('fact-status').value;
+        const batchId = document.getElementById('coop-batch').value;
+        const status = document.getElementById('coop-status').value;
         
         if (!batchId || !status) throw new Error("Alle velden verplicht!");
         
@@ -979,43 +1223,96 @@ async function factoryMarkAsDeliveredAndPay() {
     }
 }
 
-async function factoryViewBatch() {
-    const result = document.getElementById('fact-view-result');
+async function cooperativeViewBatch() {
+    const result = document.getElementById('coop-view-result');
     result.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
     
     try {
-        const batchId = document.getElementById('fact-view-batch').value;
+        const batchId = document.getElementById('coop-view-batch').value;
         if (!batchId) throw new Error("Batch ID verplicht!");
         
+        // Check if contracts are initialized
+        if (!dpp || !marketplace) {
+            throw new Error("Contracts zijn niet geïnitialiseerd. Selecteer eerst een rol.");
+        }
+        
+        console.log("🔍 Fetching batch #" + batchId);
+        console.log("DPP contract:", dpp ? "✅ OK" : "❌ Niet geïnitialiseerd");
+        console.log("Marketplace contract:", marketplace ? "✅ OK" : "❌ Niet geïnitialiseerd");
+        
+        // Get batch data from both contracts
         const batch = await dpp.getBatch(batchId);
+        console.log("✅ Batch data:", batch);
+        
+        const marketData = await marketplace.getBatchMarketData(batchId);
+        console.log("✅ Market data:", marketData);
+        
         const statusNames = ['Created', 'Verified', 'InTransit', 'QualityChecked', 'Delivered', 'Completed'];
+        const quality = Number(batch.quality);
+        const weight = Number(batch.weight);
+        
+        // Calculate expected pricing
+        let pricePerKg = 10;
+        if (quality >= 90) pricePerKg = 13;
+        else if (quality >= 70) pricePerKg = 11.5;
+        
+        const totalPrice = (pricePerKg * weight).toFixed(2);
+        const certifierFee = Number(ethers.formatUnits(marketData.certifierFee, 6));
+        const transporterFee = Number(ethers.formatUnits(marketData.transporterFee, 6));
+        const farmerAmount = Number(ethers.formatUnits(marketData.farmerAmount, 6));
+        const escrowAmount = Number(ethers.formatUnits(marketData.escrowAmount, 6));
         
         let html = `
             <div class="info-grid" style="margin-top: 1rem;">
                 <div class="info-item"><strong>Batch ID</strong><span>${batchId}</span></div>
-                <div class="info-item"><strong>Boer</strong><span>${batch.farmer}</span></div>
-                <div class="info-item"><strong>Gewicht</strong><span>${batch.weight} kg</span></div>
-                <div class="info-item"><strong>Kwaliteit</strong><span>${batch.quality}/100</span></div>
+                <div class="info-item"><strong>Boer</strong><span>${batch.farmer.substring(0,10)}...${batch.farmer.substring(38)}</span></div>
+                <div class="info-item"><strong>Gewicht</strong><span>${weight} kg</span></div>
+                <div class="info-item"><strong>Kwaliteit</strong><span>${quality}/100</span></div>
                 <div class="info-item"><strong>Herkomst</strong><span>${batch.origin}</span></div>
                 <div class="info-item"><strong>Status</strong><span>${statusNames[batch.status]}</span></div>
-            </div>
+                <div class="info-item"><strong>Op Markt</strong><span>${marketData.onMarket ? '✅ Ja' : '❌ Nee'}</span></div>
         `;
         
+        // Show marketplace data if batch has been purchased
+        if (escrowAmount > 0) {
+            html += `
+                <div class="info-item" style="grid-column: 1 / -1; background: #dbeafe; padding: 10px; border-radius: 4px;">
+                    <strong style="color: #1e40af;">💰 Escrow Informatie</strong>
+                </div>
+                <div class="info-item"><strong>Koper</strong><span>${marketData.buyer.substring(0,10)}...${marketData.buyer.substring(38)}</span></div>
+                <div class="info-item"><strong>Escrow Bedrag</strong><span>${escrowAmount.toFixed(2)} USDT</span></div>
+                <div class="info-item"><strong>Boer Krijgt</strong><span>${farmerAmount.toFixed(2)} USDT</span></div>
+                <div class="info-item"><strong>Certificeerder Fee</strong><span>${certifierFee.toFixed(2)} USDT</span></div>
+                <div class="info-item"><strong>Transporteur Fee</strong><span>${transporterFee.toFixed(2)} USDT</span></div>
+                <div class="info-item"><strong>Gecertificeerd</strong><span>${marketData.certified ? '✅ Ja' : '⏳ Nee'}</span></div>
+                <div class="info-item"><strong>Afgekeurd</strong><span>${marketData.rejected ? '❌ Ja' : '✅ Nee'}</span></div>
+            `;
+        } else {
+            html += `
+                <div class="info-item" style="grid-column: 1 / -1;">
+                    <strong>Verwachte Prijs</strong><span>${totalPrice} USDT (${pricePerKg} USDT/kg)</span>
+                </div>
+            `;
+        }
+        
+        html += `</div>`;
+        
         result.innerHTML = html;
+        console.log("✅ Batch details displayed successfully");
     } catch (error) {
         console.error("❌ View batch error:", error);
-        showError(result, error.message);
+        result.innerHTML = `<div class="alert alert-error">❌ Fout: ${error.message}</div>`;
     }
 }
 
 // ========== MARKETPLACE FUNCTIONS ==========
 
-async function factoryLoadMarket() {
-    const result = document.getElementById('factory-market');
+async function cooperativeLoadMarket() {
+    const result = document.getElementById('cooperative-market');
     result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Laden marktplaats...</p></div>';
     
     try {
-        const marketBatches = await dpp.getMarketBatches();
+        const marketBatches = await marketplace.getMarketBatches();
         
         if (marketBatches.length === 0) {
             result.innerHTML = '<div class="alert alert-info">📭 Geen batches beschikbaar op de markt. Wacht tot boeren nieuwe batches aanmaken.</div>';
@@ -1042,6 +1339,16 @@ async function factoryLoadMarket() {
             
             const totalPrice = (pricePerKg * weight).toFixed(2);
             
+            // Calculate fees (nieuwe structuur: basis + per kilo)
+            const certifierFee = calculateCertifierFee(weight).toFixed(2);
+            const transporterFee = calculateTransporterFee(weight).toFixed(2);
+            const farmerAmount = (totalPrice - certifierFee - transporterFee).toFixed(2);
+            
+            // Calculate percentages for display
+            const certifierPerc = ((certifierFee / totalPrice) * 100).toFixed(1);
+            const transporterPerc = ((transporterFee / totalPrice) * 100).toFixed(1);
+            const farmerPerc = ((farmerAmount / totalPrice) * 100).toFixed(1);
+            
             html += `
                 <div class="batch-item" style="border-left: 4px solid #f59e0b;">
                     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -1052,11 +1359,17 @@ async function factoryLoadMarket() {
                                 <strong>Gewicht:</strong> ${weight} kg<br>
                                 <strong>Kwaliteit:</strong> ${quality}/100 ${bonusText}<br>
                                 <strong>Herkomst:</strong> ${batch.origin}<br>
-                                <strong>💰 Prijs:</strong> ${pricePerKg} USDT/kg = <strong style="color: #059669; font-size: 18px;">${totalPrice} USDT</strong>
+                                <strong>💰 Totaalprijs:</strong> <strong style="color: #059669; font-size: 18px;">${totalPrice} USDT</strong> (${pricePerKg} USDT/kg)<br>
+                                <div style="margin-top: 6px; padding: 8px; background: #f3f4f6; border-radius: 4px; font-size: 13px;">
+                                    <strong>Verdeling escrow:</strong><br>
+                                    • Boer: ${farmerAmount} USDT (${farmerPerc}%)<br>
+                                    • Certificeerder: ${certifierFee} USDT (${certifierPerc}% - vaste fee + degressief per kg)<br>
+                                    • Transporteur: ${transporterFee} USDT (${transporterPerc}% - vaste fee + €0.20/kg)
+                                </div>
                             </div>
                         </div>
                         <div>
-                            <button class="button button-success" onclick="factoryPurchaseBatch(${batchId})" style="min-width: 150px;">
+                            <button class="button button-success" onclick="cooperativePurchaseBatch(${batchId})" style="min-width: 150px;">
                                 🛒 Koop Batch
                             </button>
                         </div>
@@ -1074,8 +1387,8 @@ async function factoryLoadMarket() {
     }
 }
 
-async function factoryPurchaseBatch(batchId) {
-    const result = document.getElementById('factory-market');
+async function cooperativePurchaseBatch(batchId) {
+    const result = document.getElementById('cooperative-market');
     
     if (!confirm(`Weet je zeker dat je Batch #${batchId} wilt kopen? Het bedrag wordt in escrow vastgezet tot de certificeerder goedkeurt.`)) {
         return;
@@ -1103,12 +1416,12 @@ async function factoryPurchaseBatch(batchId) {
         
         // Step 1: Approve USDT
         loadingDiv.innerHTML = '⏳ Stap 1/2: USDT goedkeuring...';
-        const approveTx = await usdt.approve(CONTRACTS.IntegratedCottonDPP, totalPrice);
+        const approveTx = await usdt.approve(CONTRACTS.CottonMarketplace, totalPrice);
         await approveTx.wait();
         
         // Step 2: Purchase batch
         loadingDiv.innerHTML = '⏳ Stap 2/2: Batch kopen en escrow zetten...';
-        const purchaseTx = await dpp.purchaseBatch(batchId);
+        const purchaseTx = await marketplace.purchaseBatch(batchId);
         await purchaseTx.wait();
         
         loadingDiv.className = 'alert alert-success';
@@ -1119,8 +1432,8 @@ async function factoryPurchaseBatch(batchId) {
         `;
         
         await updateBalances();
-        await factoryLoadMarket();
-        await factoryLoadReservedBatches();
+        await cooperativeLoadMarket();
+        await cooperativeLoadReservedBatches();
         
     } catch (error) {
         console.error("❌ Purchase batch error:", error);
@@ -1129,19 +1442,26 @@ async function factoryPurchaseBatch(batchId) {
     }
 }
 
-async function factoryLoadReservedBatches() {
-    const result = document.getElementById('factory-reserved');
+async function cooperativeLoadReservedBatches() {
+    const result = document.getElementById('cooperative-reserved');
     result.innerHTML = '<div class="loading"><div class="spinner"></div><p>Laden gekochte batches...</p></div>';
     
     try {
-        const reservedBatches = await dpp.getReservedBatches();
+        const reservedBatches = await marketplace.getReservedBatches();
         
         // Filter on batches where current account is the buyer
         const myReservedBatches = [];
         for (const batchId of reservedBatches) {
             const batch = await dpp.getBatch(batchId);
-            if (batch.buyer.toLowerCase() === currentAccount.toLowerCase()) {
-                myReservedBatches.push({ id: batchId, batch });
+            const marketData = await marketplace.getBatchMarketData(batchId);
+            
+            // Only show batches that:
+            // 1. Current account is the buyer
+            // 2. Not yet certified or rejected (still waiting)
+            if (marketData.buyer.toLowerCase() === currentAccount.toLowerCase() &&
+                !marketData.certified && 
+                !marketData.rejected) {
+                myReservedBatches.push({ id: batchId, batch, marketData });
             }
         }
         
@@ -1152,10 +1472,13 @@ async function factoryLoadReservedBatches() {
         
         let html = '<div class="batch-list">';
         
-        for (const { id, batch } of myReservedBatches) {
+        for (const { id, batch, marketData } of myReservedBatches) {
             const quality = Number(batch.quality);
             const weight = Number(batch.weight);
-            const escrowAmount = Number(ethers.formatUnits(batch.escrowAmount, 6));
+            const escrowAmount = Number(ethers.formatUnits(marketData.escrowAmount, 6));
+            const farmerAmount = Number(ethers.formatUnits(marketData.farmerAmount, 6));
+            const certifierFee = Number(ethers.formatUnits(marketData.certifierFee, 6));
+            const transporterFee = Number(ethers.formatUnits(marketData.transporterFee, 6));
             
             html += `
                 <div class="batch-item" style="border-left: 4px solid #3b82f6;">
@@ -1165,7 +1488,13 @@ async function factoryLoadReservedBatches() {
                         <strong>Gewicht:</strong> ${weight} kg<br>
                         <strong>Kwaliteit:</strong> ${quality}/100<br>
                         <strong>Herkomst:</strong> ${batch.origin}<br>
-                        <strong>💰 Escrow:</strong> <span style="color: #3b82f6; font-weight: bold;">${escrowAmount.toFixed(2)} USDT</span><br>
+                        <strong>💰 Escrow totaal:</strong> <span style="color: #3b82f6; font-weight: bold;">${escrowAmount.toFixed(2)} USDT</span><br>
+                        <div style="margin-top: 6px; padding: 8px; background: #eff6ff; border-radius: 4px; font-size: 13px;">
+                            <strong>Escrow verdeling:</strong><br>
+                            • Boer: ${farmerAmount.toFixed(2)} USDT (bij goedkeuring)<br>
+                            • Certificeerder: ${certifierFee.toFixed(2)} USDT (bij certificering)<br>
+                            • Transporteur: ${transporterFee.toFixed(2)} USDT (bij IoT data)
+                        </div>
                         <strong>Status:</strong> <span class="status-badge" style="background: #fef3c7; color: #92400e;">⏳ Wacht op Certificering</span>
                     </div>
                 </div>

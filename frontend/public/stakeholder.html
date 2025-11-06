@@ -129,8 +129,8 @@
                     <div class="role-name">Certificeerder</div>
                     <div class="role-desc">Kwaliteit Certificatie</div>
                 </div>
-                <div class="role-card" onclick="selectRole('factory', 5)">
-                    <div class="role-icon">🏭</div>
+                <div class="role-card" onclick="selectRole('cooperative', 5)">
+                    <div class="role-icon">🤝</div>
                     <div class="role-name">Inkoop Coöperatie</div>
                     <div class="role-desc">Verwerking & Productie</div>
                 </div>
@@ -251,6 +251,26 @@
                 <div id="farmer-create-result"></div>
             </div>
 
+            <div class="card" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-left: 4px solid #f59e0b;">
+                <h2>💰 Farmer Escrow Beheer</h2>
+                <div class="alert alert-warning">
+                    <strong>ℹ️ Escrow Balance:</strong> <span id="farmer-escrow-balance" style="font-size: 18px; font-weight: bold; color: #f59e0b;">Loading...</span> USDT
+                </div>
+                <div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px;">
+                    <p style="margin: 0; font-size: 13px; color: #666;">
+                        <strong>Wat is escrow?</strong><br>
+                        Je moet een escrow storten om batches op de markt te kunnen zetten. Als een batch wordt afgekeurd, wordt de certificeerder fee (5%) uit jouw escrow betaald. Bij goedkeuring blijft je escrow intact.
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Stort bedrag (USDT)</label>
+                    <input type="number" id="farmer-escrow-amount" value="5000" min="1000">
+                </div>
+                <button class="button button-warning" onclick="farmerDepositEscrow()">💳 Stort Escrow</button>
+                <button class="button" onclick="farmerRefreshEscrow()">🔄 Ververs Balance</button>
+                <div id="farmer-escrow-result"></div>
+            </div>
+
             <div class="card">
                 <h2>2. Mijn Batches</h2>
                 <button class="button" onclick="farmerLoadBatches()">Ververs Batches</button>
@@ -264,15 +284,6 @@
                 </div>
                 <button class="button" onclick="farmerLoadVCs()" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);">🔄 Ververs VCs</button>
                 <div id="farmer-vcs"></div>
-            </div>
-
-            <div class="card">
-                <h2>3. USDT Faucet</h2>
-                <div class="alert alert-warning">
-                    <strong>💡 Tip:</strong> Krijg gratis 1000 USDT voor testing
-                </div>
-                <button class="button button-warning" onclick="getFaucet()">🚰 Krijg 1000 USDT</button>
-                <div id="farmer-faucet-result"></div>
             </div>
         </div>
 
@@ -304,7 +315,7 @@
                     • Luchtvochtigheid: 40-80%<br>
                     • Transport route: India → Rotterdam
                 </div>
-                <button class="button button-success" onclick="transporterTrack()">� Track Batch (Auto-genereer IoT als nodig)</button>
+                <button class="button button-success" onclick="transporterTrack()">🔍 Track Batch (Auto-genereer IoT als nodig)</button>
                 <div id="trans-track-result"></div>
             </div>
         </div>
@@ -330,10 +341,10 @@
             </div>
         </div>
 
-        <!-- FACTORY DASHBOARD -->
-        <div id="dashboard-factory" class="dashboard">
+        <!-- COOPERATIVE DASHBOARD -->
+        <div id="dashboard-cooperative" class="dashboard">
             <div class="card">
-                <h2>🏭 Inkoop Coöperatie Dashboard</h2>
+                <h2>🤝 Inkoop Coöperatie Dashboard</h2>
                 <div class="task-list">
                     <h3>📋 Uw Taken:</h3>
                     <div class="task-item">� Katoen batches op de markt bekijken en kopen</div>
@@ -353,8 +364,8 @@
                     4. Certificeerder keurt de batch goed of af<br>
                     5. Bij goedkeuring: escrow → boer | Bij afkeuring: escrow → jou (refund)
                 </div>
-                <button class="button" style="background: #f59e0b;" onclick="factoryLoadMarket()">🔄 Ververs Marktplaats</button>
-                <div id="factory-market"></div>
+                <button class="button" style="background: #f59e0b;" onclick="cooperativeLoadMarket()">🔄 Ververs Marktplaats</button>
+                <div id="cooperative-market"></div>
             </div>
 
             <div class="card" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); border-left: 4px solid #3b82f6;">
@@ -362,8 +373,8 @@
                 <div class="alert alert-info" style="background: white;">
                     <strong>ℹ️ Info:</strong> Deze batches heb je gekocht en wachten op goedkeuring door de certificeerder. Het betaalde bedrag zit in escrow.
                 </div>
-                <button class="button" style="background: #3b82f6;" onclick="factoryLoadReservedBatches()">🔄 Ververs Mijn Batches</button>
-                <div id="factory-reserved"></div>
+                <button class="button" style="background: #3b82f6;" onclick="cooperativeLoadReservedBatches()">🔄 Ververs Mijn Batches</button>
+                <div id="cooperative-reserved"></div>
             </div>
 
             <div class="card">
@@ -373,11 +384,11 @@
                 </div>
                 <div class="form-group">
                     <label>Batch ID</label>
-                    <input type="number" id="fact-batch" placeholder="1">
+                    <input type="number" id="coop-batch" placeholder="1">
                 </div>
                 <div class="form-group">
                     <label>Nieuwe Status</label>
-                    <select id="fact-status">
+                    <select id="coop-status">
                         <option value="1">Verified (Geverifieerd)</option>
                         <option value="2">In Transit (In Transport)</option>
                         <option value="3">Quality Checked (Kwaliteit Gecontroleerd)</option>
@@ -385,24 +396,18 @@
                         <option value="5">Completed (Compleet)</option>
                     </select>
                 </div>
-                <button class="button button-success" onclick="factoryUpdateStatus()">✅ Update Status</button>
-                <div id="fact-status-result"></div>
+                <button class="button button-success" onclick="cooperativeUpdateStatus()">✅ Update Status</button>
+                <div id="coop-status-result"></div>
             </div>
 
             <div class="card">
-                <h2>2. USDT Faucet</h2>
-                <button class="button button-warning" onclick="getFaucet()">🚰 Krijg 1000 USDT</button>
-                <div id="fact-faucet-result"></div>
-            </div>
-
-            <div class="card">
-                <h2>3. Batch Details Bekijken</h2>
+                <h2>2. Batch Details Bekijken</h2>
                 <div class="form-group">
                     <label>Batch ID</label>
-                    <input type="number" id="fact-view-batch" placeholder="1">
+                    <input type="number" id="coop-view-batch" placeholder="1">
                 </div>
-                <button class="button" onclick="factoryViewBatch()">🔍 Bekijk Details</button>
-                <div id="fact-view-result"></div>
+                <button class="button" onclick="cooperativeViewBatch()">🔍 Bekijk Details</button>
+                <div id="coop-view-result"></div>
             </div>
         </div>
     </div>

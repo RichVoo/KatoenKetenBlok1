@@ -1,8 +1,17 @@
 ﻿import express from 'express';
 import path from 'path';
-import { createWallet, getBalance, createDIDFromAddress, isValidDID, resolveAddressFromDID } from './blockchain';
-import fs from 'fs/promises';
-import { provider } from './blockchain';
+import {
+    createWallet,
+    getBalance,
+    createDIDFromAddress,
+    isValidDID,
+    resolveAddressFromDID,
+    fetchAllDIDs,
+    fetchDIDByAddress,
+    registerDIDOnChain,
+    getSubjectVCIds,
+    getCredential
+} from './blockchain';
 import { ethers } from 'ethers';
 
 const app = express();
@@ -17,95 +26,26 @@ app.use((req, res, next) => {
     next();
 });
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const REG_FILE = path.join(DATA_DIR, 'registrations.json');
+// Alle file-based opslag verwijderd: alles komt nu direct van de blockchain
+// Verificatie-flow vereenvoudigd tot directe on-chain registratie via admin sleutel
 
-async function ensureDataDir() {
-    try {
-        await fs.mkdir(DATA_DIR, { recursive: true });
-        const data = await readJson(REG_FILE);
-        await fs.writeFile(REG_FILE, JSON.stringify(data, null, 2), { encoding: 'utf8' });
-    } catch (e) {}
+function error(res: express.Response, status: number, msg: string) {
+  return res.status(status).json({ error: msg });
 }
 
-async function readJson(filePath: string) {
-    try {
-        const raw = await fs.readFile(filePath, 'utf8');
-        return JSON.parse(raw || '[]');
-    } catch (e) {
-        return [];
-    }
-}
-
-async function writeJson(filePath: string, data: any) {
-    await ensureDataDir();
-    await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-}
-
-const VERIFY_FILE = path.join(DATA_DIR, 'verifications.json');
-
-async function readVerifications() {
-    try {
-        const data = await readJson(VERIFY_FILE);
-        // Clean up expired codes (older than 10 minutes)
-        const now = Date.now();
-        const valid = data.filter((v: any) => now - v.timestamp < 10 * 60 * 1000);
-        if (valid.length !== data.length) {
-            await writeJson(VERIFY_FILE, valid);
-        }
-        return valid;
-    } catch (e) {
-        return [];
-    }
-}
-
-async function saveVerification(code: string, data: any) {
-    const verifications = await readVerifications();
-    verifications.push({ code, ...data, timestamp: Date.now() });
-    await writeJson(VERIFY_FILE, verifications);
-}
-
-async function getVerification(code: string) {
-    const verifications = await readVerifications();
-    return verifications.find((v: any) => v.code === code);
-}
-
-async function deleteVerification(code: string) {
-    const verifications = await readVerifications();
-    const filtered = verifications.filter((v: any) => v.code !== code);
-    await writeJson(VERIFY_FILE, filtered);
-}
-
-function generateVerificationCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-async function sendVerificationEmail(email: string, code: string, naam: string, urn: string): Promise<void> {
-    console.log('========== VERIFICATION EMAIL ==========');
-    console.log(`To: ${email}`);
-    console.log(`Subject: Verify your DID registration`);
-    console.log(`Dear ${naam},`);
-    console.log(`Your verification code for URN ${urn} is: ${code}`);
-    console.log(`This code will expire in 10 minutes.`);
-    console.log('========================================');
-}
-
-// Simple one-step registration (like original PoC_DID)
+// Nieuwe directe registratie: maakt lokale wallet + registreert direct on-chain
 app.post('/api/register', async (req, res) => {
     try {
         const { naam, bedrijfsnaam, urn, email, telefoon, role } = req.body;
-        
-        if (!naam || !bedrijfsnaam || !urn) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
+        if (!naam || !bedrijfsnaam || !urn) return error(res, 400, 'Missing required fields');
 
-        const regs = await readJson(REG_FILE);
-        if (regs.find((r: any) => r.urn.toLowerCase() === urn.toLowerCase())) {
-            return res.status(400).json({ error: 'This URN is already registered' });
-        }
-
+        // Maak nieuwe wallet
         const wallet = await createWallet();
         const did = wallet.did;
+        const didType = role || 'farmer';
+
+        // Registreer direct on-chain (admin roept contract aan)
+        const txHash = await registerDIDOnChain(wallet.address, didType, wallet.address);
 
         const didDocument = {
             '@context': 'https://www.w3.org/ns/did/v1',
@@ -122,233 +62,64 @@ app.post('/api/register', async (req, res) => {
             created: new Date().toISOString()
         };
 
-        const registration = {
+        const response = {
             did,
             walletAddress: wallet.address,
             privateKey: wallet.privateKey,
-            urn, naam, bedrijfsnaam, email, telefoon,
-            role: role || 'farmer',
+            urn,
+            naam,
+            bedrijfsnaam,
+            email,
+            telefoon,
+            didType,
             didDocument,
             timestamp: new Date().toISOString(),
-            verified: true
+            txHash,
+            verified: true,
+            onChain: true
         };
 
-        regs.push(registration);
-        await writeJson(REG_FILE, regs);
-
-        console.log(`DID Created: ${did} for ${naam} (${bedrijfsnaam}) - Role: ${role || 'farmer'}`);
-
-        res.json(registration);
-    } catch (e) {
+        console.log(`DID Created & On-chain: ${did} (${didType}) tx=${txHash}`);
+        res.json(response);
+    } catch (e: any) {
         console.error('Error /api/register', e);
-        res.status(500).json({ error: 'Registration failed' });
+        error(res, 500, 'Registration failed: ' + e.message);
     }
 });
 
 // On-chain registration endpoint
-app.post('/api/register-on-chain', async (req, res) => {
-    try {
-        const { walletAddress } = req.body;
-        if (!walletAddress) return res.status(400).json({ error: 'walletAddress is required' });
-
-        console.log('Starting on-chain registration for address:', walletAddress);
-
-        // Get registration data
-        const regs = await readJson(REG_FILE);
-        const registration = regs.find((r: any) => r.walletAddress.toLowerCase() === walletAddress.toLowerCase());
-        if (!registration) {
-            return res.status(404).json({ error: 'Registration not found' });
-        }
-
-        const adminPrivateKey = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
-        const adminWallet = new ethers.Wallet(adminPrivateKey, provider);
-
-        // We'll explicitly manage nonces and add a small retry in case the provider reports a nonce mismatch.
-        const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-        const contractABI = [
-            "function registerDID(address controller, string publicKey, string didType)"
-        ];
-
-        // Get current nonce and use it for the ETH transfer first.
-        let baseNonce = await provider.getTransactionCount(adminWallet.address, 'latest');
-        console.log('Starting on-chain flow with base nonce:', baseNonce);
-
-        // 1) Send ETH to new wallet for gas using explicit nonce
-        const ethTx = await adminWallet.sendTransaction({
-            to: walletAddress,
-            value: ethers.parseEther("0.1"),
-            nonce: baseNonce
-        });
-        console.log('ETH tx sent (nonce', baseNonce, '):', ethTx.hash);
-        const ethReceipt = await ethTx.wait();
-        console.log('ETH confirmed');
-
-        // 2) Call registerDID using nonce = baseNonce + 1. Add a small retry if nonce errors occur.
-        const contract = new ethers.Contract(contractAddress, contractABI, adminWallet);
-        const didType = registration.didType || registration.role || 'farmer';
-        const publicKey = registration.walletAddress;
-        
-        console.log('Registering DID with type:', didType, 'from registration:', registration.didType || registration.role);
-
-        let attempt = 0;
-        const maxAttempts = 3;
-        let didReceipt: any = null;
-        while (attempt < maxAttempts) {
-            const txNonce = baseNonce + 1 + attempt; // try increasing nonce on retry
-            try {
-                console.log(`Attempt ${attempt + 1}: registerDID with nonce ${txNonce}`);
-                const didTx = await contract.registerDID(walletAddress, publicKey, didType, { nonce: txNonce });
-                console.log('DID registration tx sent:', didTx.hash);
-                didReceipt = await didTx.wait();
-                console.log('DID registered on-chain!', didReceipt);
-                break;
-            } catch (err: any) {
-                console.error(`Attempt ${attempt + 1} failed:`, err && err.message ? err.message : err);
-                // If it's a nonce error, fetch latest nonce and adjust baseNonce
-                if (err && err.code === 'NONCE_EXPIRED') {
-                    const latest = await provider.getTransactionCount(adminWallet.address, 'latest');
-                    console.log('Nonce expired. Updating baseNonce to', latest - 1);
-                    baseNonce = Math.max(0, latest - 1);
-                    // small delay before retry
-                    await new Promise(r => setTimeout(r, 200));
-                    attempt++;
-                    continue;
-                }
-                // for other errors rethrow
-                throw err;
-            }
-        }
-
-        if (!didReceipt) {
-            throw new Error('Failed to register DID on-chain after retries');
-        }
-
-        // Update registration with txHash
-        const idx = regs.findIndex((r: any) => r.walletAddress.toLowerCase() === walletAddress.toLowerCase());
-        if (idx !== -1) {
-            regs[idx].txHash = didReceipt.transactionHash || didReceipt.hash;
-            regs[idx].txReceipt = didReceipt;
-            regs[idx].onChain = true;
-            await writeJson(REG_FILE, regs);
-        }
-
-        res.json({ txHash: didReceipt.transactionHash || didReceipt.hash, receipt: didReceipt });
-
-        
-    } catch (e) {
-        console.error('Error /api/register-on-chain', e);
-        res.status(500).json({ error: 'On-chain registration failed: ' + (e as Error).message });
-    }
+// Legacy endpoint kept as no-op (compatibility)
+app.post('/api/register-on-chain', async (_req, res) => {
+  return res.json({ message: 'Direct registratie wordt al on-chain gedaan via /api/register', alreadyOnChain: true });
 });
 
-app.post('/api/request-verification', async (req, res) => {
-    try {
-        const { naam, bedrijfsnaam, urn, email, telefoon, didType } = req.body;
-        
-        if (!naam || !bedrijfsnaam || !urn || !email) {
-            return res.status(400).json({ error: 'Missing required fields' });
-        }
-
-        const regs = await readJson(REG_FILE);
-        if (regs.find((r: any) => r.urn.toLowerCase() === urn.toLowerCase())) {
-            return res.status(400).json({ error: 'This URN is already registered' });
-        }
-
-        // Remove old verification codes for this URN
-        const allVerifications = await readVerifications();
-        const filtered = allVerifications.filter((v: any) => v.urn.toLowerCase() !== urn.toLowerCase());
-        await writeJson(VERIFY_FILE, filtered);
-
-        const code = generateVerificationCode();
-
-        await saveVerification(code, {
-            naam, bedrijfsnaam, urn, email, telefoon,
-            didType: didType || 'organization'
-        });
-
-        await sendVerificationEmail(email, code, naam, urn);
-
-        res.json({ success: true, message: 'Verification code sent to email', code });
-    } catch (e) {
-        console.error('Error requesting verification:', e);
-        res.status(500).json({ error: 'Failed to initiate verification' });
-    }
+// Nieuwe flow: geen e-mail verificatie meer, endpoint disabled
+app.post('/api/request-verification', (_req, res) => {
+  return res.status(410).json({ error: 'Verification flow removed. Use /api/register directly.' });
 });
 
-app.post('/api/verify-and-create-wallet', async (req, res) => {
-    try {
-        const { verificationCode } = req.body;
-        
-        if (!verificationCode) {
-            return res.status(400).json({ error: 'Verification code required' });
-        }
-
-        const verificationData = await getVerification(verificationCode);
-        if (!verificationData) {
-            return res.status(400).json({ error: 'Invalid or expired verification code' });
-        }
-
-        if (Date.now() - verificationData.timestamp > 10 * 60 * 1000) {
-            await deleteVerification(verificationCode);
-            return res.status(400).json({ error: 'Verification code expired' });
-        }
-
-        const { naam, bedrijfsnaam, urn, email, telefoon, didType } = verificationData;
-        await deleteVerification(verificationCode);
-
-        const wallet = await createWallet();
-        const did = wallet.did;
-
-        const didDocument = {
-            '@context': 'https://www.w3.org/ns/did/v1',
-            id: did,
-            verificationMethod: [
-                {
-                    id: `${did}#key-1`,
-                    type: 'EcdsaSecp256k1VerificationKey2019',
-                    controller: did,
-                    blockchainAccountId: `eip155:1337:${wallet.address}`
-                }
-            ],
-            authentication: [`${did}#key-1`],
-            created: new Date().toISOString()
-        };
-
-        const registration = {
-            did,
-            walletAddress: wallet.address,
-            privateKey: wallet.privateKey,
-            urn, naam, bedrijfsnaam, email, telefoon, didType,
-            didDocument,
-            timestamp: new Date().toISOString(),
-            verified: true
-        };
-
-        const regs = await readJson(REG_FILE);
-        regs.push(registration);
-        await writeJson(REG_FILE, regs);
-
-        console.log(`DID Created: ${did} for ${naam} (${bedrijfsnaam})`);
-
-        res.json(registration);
-    } catch (e) {
-        console.error('Error verifying and creating wallet:', e);
-        res.status(500).json({ error: 'Registration failed' });
-    }
+app.post('/api/verify-and-create-wallet', (_req, res) => {
+  return res.status(410).json({ error: 'Verification flow removed. Use /api/register.' });
 });
 
-app.get('/api/registrations', async (req, res) => {
+app.get('/api/registrations', async (_req, res) => {
     try {
-        const regs = await readJson(REG_FILE);
-        const safeRegs = regs.map((r: any) => ({
-            did: r.did, walletAddress: r.walletAddress, naam: r.naam,
-            bedrijfsnaam: r.bedrijfsnaam, urn: r.urn, didType: r.didType,
-            timestamp: r.timestamp, verified: r.verified
+        const dids = await fetchAllDIDs();
+        const mapped = dids.map(d => ({
+            did: d.identifier,
+            walletAddress: d.controller,
+            naam: '(on-chain)',
+            bedrijfsnaam: '(on-chain)',
+            urn: d.controller.substring(0, 10),
+            didType: d.didType,
+            timestamp: new Date(d.registered * 1000).toISOString(),
+            verified: d.active,
+            txHash: null
         }));
-        res.json(safeRegs);
-    } catch (e) {
-        console.error('Error getting registrations:', e);
-        res.status(500).json({ error: 'Failed to get registrations' });
+        res.json(mapped);
+    } catch (e: any) {
+        console.error('Error /api/registrations', e);
+        error(res, 500, 'Failed to load registrations: ' + e.message);
     }
 });
 
@@ -356,20 +127,18 @@ app.get('/api/search', async (req, res) => {
     try {
         const q = (req.query.q as string || '').trim();
         if (!q) return res.json([]);
-        
-        const regs = await readJson(REG_FILE);
+        const dids = await fetchAllDIDs();
         const lower = q.toLowerCase();
-        const results = regs.filter((r: any) => (
-            (r.did && r.did.toLowerCase().includes(lower)) ||
-            (r.walletAddress && r.walletAddress.toLowerCase() === lower) ||
-            (r.urn && r.urn.toLowerCase().includes(lower)) ||
-            (r.naam && r.naam.toLowerCase().includes(lower)) ||
-            (r.bedrijfsnaam && r.bedrijfsnaam.toLowerCase().includes(lower))
+        const results = dids.filter(d => (
+            d.identifier.toLowerCase().includes(lower) ||
+            d.controller.toLowerCase() === lower ||
+            d.publicKey.toLowerCase().includes(lower) ||
+            d.didType.toLowerCase().includes(lower)
         ));
         res.json(results);
-    } catch (e) {
+    } catch (e: any) {
         console.error('Error searching:', e);
-        res.status(500).json({ error: 'Search failed' });
+        error(res, 500, 'Search failed: ' + e.message);
     }
 });
 
@@ -387,42 +156,34 @@ app.get('/api/resolve-did/:did', async (req, res) => {
         }
 
         const balance = await getBalance(address);
-        const regs = await readJson(REG_FILE);
-        const registration = regs.find((r: any) => r.did.toLowerCase() === did.toLowerCase());
-
-        if (!registration) {
-            return res.json({
-                did, address,
-                balance: `${ethers.formatEther(balance)} ETH`,
-                didDocument: {
-                    '@context': 'https://www.w3.org/ns/did/v1',
-                    id: did,
-                    verificationMethod: [{
-                        id: `${did}#key-1`,
-                        type: 'EcdsaSecp256k1VerificationKey2019',
-                        controller: did,
-                        blockchainAccountId: `eip155:1337:${address}`
-                    }],
-                    authentication: [`${did}#key-1`]
+                const onChain = await fetchDIDByAddress(address);
+                if (!onChain) {
+                    return res.status(404).json({ error: 'DID not found on-chain' });
                 }
-            });
-        }
-
-        res.json({
-            did, address,
-            balance: `${ethers.formatEther(balance)} ETH`,
-            didDocument: registration.didDocument,
-            registration: {
-                naam: registration.naam,
-                bedrijfsnaam: registration.bedrijfsnaam,
-                urn: registration.urn,
-                didType: registration.didType,
-                email: registration.email,
-                telefoon: registration.telefoon,
-                geregistreerd: registration.timestamp,
-                verified: registration.verified
-            }
-        });
+                res.json({
+                    did: did,
+                    address,
+                    balance: `${ethers.formatEther(balance)} ETH`,
+                    didDocument: {
+                        '@context': 'https://www.w3.org/ns/did/v1',
+                        id: onChain.identifier,
+                        verificationMethod: [{
+                            id: `${onChain.identifier}#key-1`,
+                            type: 'EcdsaSecp256k1VerificationKey2019',
+                            controller: onChain.identifier,
+                            blockchainAccountId: `eip155:1337:${address}`
+                        }],
+                        authentication: [`${onChain.identifier}#key-1`]
+                    },
+                    registration: {
+                        naam: '(on-chain)',
+                        bedrijfsnaam: '(on-chain)',
+                        urn: address.substring(0, 12),
+                        didType: onChain.didType,
+                        geregistreerd: new Date(onChain.registered * 1000).toISOString(),
+                        verified: onChain.active
+                    }
+                });
     } catch (error) {
         console.error('Error resolving DID:', error);
         res.status(500).json({ error: 'Failed to resolve DID' });
@@ -434,60 +195,76 @@ app.get('/health', (req, res) => {
 });
 
 // Get all registrations
-app.get('/api/registrations', async (req, res) => {
+// (Dubbele endpoint behouden voor backward compat) => levert dezelfde data
+app.get('/api/registrations', async (_req, res) => {
     try {
-        const regs = await readJson(REG_FILE);
-        // Remove private keys from response for security
-        const safeRegs = regs.map((r: any) => ({
-            did: r.did,
-            walletAddress: r.walletAddress,
-            urn: r.urn,
-            naam: r.naam,
-            bedrijfsnaam: r.bedrijfsnaam,
-            role: r.role || 'farmer',
-            didType: r.didType || r.role || 'farmer',
-            timestamp: r.timestamp,
-            txHash: r.txHash,
-            verified: r.verified
+        const dids = await fetchAllDIDs();
+        const mapped = dids.map(d => ({
+            did: d.identifier,
+            walletAddress: d.controller,
+            urn: d.controller.substring(0, 10),
+            naam: '(on-chain)',
+            bedrijfsnaam: '(on-chain)',
+            role: d.didType,
+            didType: d.didType,
+            timestamp: new Date(d.registered * 1000).toISOString(),
+            txHash: null,
+            verified: d.active
         }));
-        res.json(safeRegs);
-    } catch (e) {
+        res.json(mapped);
+    } catch (e: any) {
         console.error('Error /api/registrations', e);
-        res.status(500).json({ error: 'Failed to load registrations' });
+        error(res, 500, 'Failed to load registrations: ' + e.message);
     }
 });
 
 // Get registration by wallet address
 app.get('/api/registration/:address', async (req, res) => {
     try {
-        const address = req.params.address.toLowerCase();
-        const regs = await readJson(REG_FILE);
-        const registration = regs.find((r: any) => r.walletAddress.toLowerCase() === address);
-        
-        if (!registration) {
-            return res.status(404).json({ error: 'Registration not found' });
-        }
-        
-        // Remove private key from response
-        const safeReg = {
-            did: registration.did,
-            walletAddress: registration.walletAddress,
-            urn: registration.urn,
-            naam: registration.naam,
-            bedrijfsnaam: registration.bedrijfsnaam,
-            email: registration.email,
-            telefoon: registration.telefoon,
-            role: registration.role || 'farmer',
-            didType: registration.didType || registration.role || 'farmer',
-            timestamp: registration.timestamp,
-            txHash: registration.txHash,
-            verified: registration.verified
-        };
-        
-        res.json(safeReg);
-    } catch (e) {
+        const addr = req.params.address;
+        const did = await fetchDIDByAddress(addr);
+        if (!did) return error(res, 404, 'Registration not found (no on-chain DID)');
+        res.json({
+            did: did.identifier,
+            walletAddress: did.controller,
+            urn: did.controller.substring(0, 12),
+            naam: '(on-chain)',
+            bedrijfsnaam: '(on-chain)',
+            role: did.didType,
+            didType: did.didType,
+            timestamp: new Date(did.registered * 1000).toISOString(),
+            txHash: null,
+            verified: did.active
+        });
+    } catch (e: any) {
         console.error('Error /api/registration/:address', e);
-        res.status(500).json({ error: 'Failed to load registration' });
+        error(res, 500, 'Failed to load registration: ' + e.message);
+    }
+});
+
+// Extra: haal alle VC's van een subject
+app.get('/api/vcs/:address', async (req, res) => {
+    try {
+        const subject = req.params.address;
+        const ids = await getSubjectVCIds(subject);
+        const vcList = [];
+        for (const id of ids) {
+            const vc = await getCredential(id);
+            vcList.push({
+                id: Number(vc.id),
+                issuer: vc.issuer,
+                subject: vc.subject,
+                credentialType: vc.credentialType,
+                data: vc.data,
+                issuedAt: Number(vc.issuedAt),
+                expiresAt: Number(vc.expiresAt),
+                revoked: vc.revoked
+            });
+        }
+        res.json(vcList);
+    } catch (e: any) {
+        console.error('Error /api/vcs/:address', e);
+        error(res, 500, 'Failed to load VCs: ' + e.message);
     }
 });
 

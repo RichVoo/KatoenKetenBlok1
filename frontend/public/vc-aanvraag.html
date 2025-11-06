@@ -1589,16 +1589,23 @@
                 
                 // Connect to contract
                 const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
-                const contractAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+                const dppAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512'; // CottonDPP address
+                const marketplaceAddress = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0'; // CottonMarketplace address
                 
-                const BATCH_ABI = [
-                    "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)"
+                const DPP_ABI = [
+                    "function getBatch(uint256) view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds)"
                 ];
                 
-                const contract = new ethers.Contract(contractAddress, BATCH_ABI, provider);
+                const MARKETPLACE_ABI = [
+                    "function getBatchMarketData(uint256) view returns (bool onMarket, address buyer, uint256 escrowAmount, uint256 farmerAmount, uint256 certifierFee, uint256 transporterFee, uint256 farmerEscrow, address certifier, address transporter, bool certified, bool rejected, bool certifierPaid, bool transporterPaid)"
+                ];
                 
-                // Fetch batch data
-                const batch = await contract.getBatch(batchId);
+                const dppContract = new ethers.Contract(dppAddress, DPP_ABI, provider);
+                const marketplaceContract = new ethers.Contract(marketplaceAddress, MARKETPLACE_ABI, provider);
+                
+                // Fetch batch data from both contracts
+                const batch = await dppContract.getBatch(batchId);
+                const marketData = await marketplaceContract.getBatchMarketData(batchId);
                 
                 if (Number(batch.id) === 0) {
                     resultDiv.innerHTML = '<div class="info-box warning">❌ Batch niet gevonden</div>';
@@ -1612,9 +1619,9 @@
                 
                 // Calculate escrow amount if reserved
                 let escrowInfo = '';
-                if (batch.status === 1 && Number(batch.escrowAmount) > 0) {
-                    const escrowAmount = ethers.utils.formatUnits(batch.escrowAmount, 6);
-                    escrowInfo = `<br><strong>💰 Escrow:</strong> ${escrowAmount} USDT<br><strong>🛒 Gekocht door:</strong> ${batch.buyer}`;
+                if (Number(marketData.escrowAmount) > 0) {
+                    const escrowAmount = ethers.utils.formatUnits(marketData.escrowAmount, 6);
+                    escrowInfo = `<br><strong>💰 Escrow:</strong> ${escrowAmount} USDT<br><strong>🛒 Gekocht door:</strong> ${marketData.buyer}`;
                 }
                 
                 // Fill in batch details
@@ -1643,16 +1650,16 @@
                 detailsSection.style.display = 'block';
                 resultDiv.innerHTML = escrowInfo ? `<div class="info-box info">${escrowInfo}</div>` : '';
                 
-                // Check if can be certified
-                if (batch.status === 1) {
-                    // Reserved - can be certified
+                // Check if can be certified - batch must be purchased (escrowAmount > 0) and not yet certified/rejected
+                if (Number(marketData.escrowAmount) > 0 && !marketData.certified && !marketData.rejected) {
+                    // Has escrow - can be certified
                     document.getElementById('verify-batch-btn').disabled = false;
                     document.getElementById('reject-batch-btn').disabled = false;
                     document.getElementById('verify-batch-btn').style.opacity = '1';
                     document.getElementById('reject-batch-btn').style.opacity = '1';
                     document.getElementById('verify-batch-btn').style.cursor = 'pointer';
                     document.getElementById('reject-batch-btn').style.cursor = 'pointer';
-                } else if (batch.status === 2) {
+                } else if (marketData.certified) {
                     // Already verified
                     resultDiv.innerHTML = '<div class="info-box success">✅ Deze batch is al goedgekeurd en betaald</div>';
                     document.getElementById('verify-batch-btn').disabled = true;
@@ -1661,7 +1668,7 @@
                     document.getElementById('reject-batch-btn').style.opacity = '0.5';
                     document.getElementById('verify-batch-btn').style.cursor = 'not-allowed';
                     document.getElementById('reject-batch-btn').style.cursor = 'not-allowed';
-                } else if (batch.status === 3) {
+                } else if (marketData.rejected) {
                     // Rejected
                     resultDiv.innerHTML = '<div class="info-box warning">❌ Deze batch is al afgekeurd en terug op de markt</div>';
                     document.getElementById('verify-batch-btn').disabled = true;
@@ -1679,8 +1686,6 @@
                     document.getElementById('reject-batch-btn').style.opacity = '0.5';
                     document.getElementById('verify-batch-btn').style.cursor = 'not-allowed';
                     document.getElementById('reject-batch-btn').style.cursor = 'not-allowed';
-                    document.getElementById('verify-batch-btn').style.opacity = '1';
-                    document.getElementById('verify-batch-btn').style.cursor = 'pointer';
                 }
                 
             } catch (error) {
@@ -1726,14 +1731,14 @@
                 // Connect to contract with signer
                 const provider = new ethers.providers.JsonRpcProvider('http://localhost:8545');
                 const signer = new ethers.Wallet(certPrivateKey, provider);
-                const contractAddress = '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512';
+                const marketplaceAddress = '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0'; // CottonMarketplace address
                 
-                const BATCH_ABI = [
+                const MARKETPLACE_ABI = [
                     "function certifyBatch(uint256 batchId, bool approved) external",
                     "function hasRole(bytes32 role, address account) external view returns (bool)"
                 ];
                 
-                const contract = new ethers.Contract(contractAddress, BATCH_ABI, signer);
+                const contract = new ethers.Contract(marketplaceAddress, MARKETPLACE_ABI, signer);
                 
                 // Verify certifier role
                 const certifierRole = ethers.utils.id('CERTIFIER_ROLE');
@@ -1756,7 +1761,7 @@
                 if (approved) {
                     try {
                         const PAYMENT_ABI = [
-                            "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)"
+                            "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, uint256 farmerAmount, uint256 certifierFee, uint256 transporterFee, uint256 farmerEscrow, address certifier, address transporter, bool certified, bool rejected, bool certifierPaid, bool transporterPaid)"
                         ];
                         
                         const paymentContract = new ethers.Contract(contractAddress, PAYMENT_ABI, provider);
@@ -1795,7 +1800,7 @@
                 } else {
                     try {
                         const PAYMENT_ABI = [
-                            "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, bool certified, bool rejected)"
+                            "function getBatch(uint256 batchId) external view returns (uint256 id, address farmer, uint256 weight, uint256 quality, string origin, uint256 createdAt, uint8 status, address currentOwner, uint256[] vcIds, bool onMarket, address buyer, uint256 escrowAmount, uint256 farmerAmount, uint256 certifierFee, uint256 transporterFee, uint256 farmerEscrow, address certifier, address transporter, bool certified, bool rejected, bool certifierPaid, bool transporterPaid)"
                         ];
                         
                         const paymentContract = new ethers.Contract(contractAddress, PAYMENT_ABI, provider);
