@@ -245,6 +245,11 @@ async function loadDPP() {
         const co2TransportCalc = (batchWeight * 0.1 / 1000).toFixed(2); // 0.1kg CO2 per ton transported
         const co2ProcessingCalc = (batchWeight * 0.15 / 1000).toFixed(2);
         const totalCO2 = (parseFloat(co2Farm) + parseFloat(co2TransportCalc) + parseFloat(co2ProcessingCalc)).toFixed(2);
+        
+        // Calculate final quality (processing may cause slight quality reduction)
+        const batchQuality = Number(batch.quality.toString());
+        const qualityReduction = Math.floor(Math.random() * 6); // Random 0-5 points reduction
+        const finalQuality = Math.max(batchQuality - qualityReduction, Math.floor(batchQuality * 0.9)); // At least 90% of original
 
         // Build DPP HTML
         let html = `
@@ -255,7 +260,7 @@ async function loadDPP() {
 
             <div class="dpp-product-info">
                 <div>
-                    <div class="product-image">🌾</div>
+                    <div class="product-image">👕</div>
                 </div>
                 <div class="product-details">
                     <h3>Biologisch Katoen T-Shirt</h3>
@@ -269,7 +274,7 @@ async function loadDPP() {
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Eindkwaliteit:</span>
-                        <span class="detail-value">${batch.quality.toString()}/100 ${Number(batch.quality.toString()) >= 90 ? '- Uitstekend' : Number(batch.quality.toString()) >= 70 ? '- Goed' : '- Voldoende'}</span>
+                        <span class="detail-value">${finalQuality}/100 ${finalQuality >= 90 ? '- Uitstekend' : finalQuality >= 70 ? '- Goed' : '- Voldoende'}</span>
                     </div>
                     <div class="detail-row">
                         <span class="detail-label">Shirt-Maat:</span>
@@ -392,10 +397,18 @@ async function loadDPP() {
                                 bonusPerc = 0;
                             }
                             
+                            // Determine recipient based on payment reason
+                            let recipientLabel = '✅ Boer Uitbetaald';
+                            if (payment.reason.toLowerCase().includes('certifier')) {
+                                recipientLabel = '✅ Certificeerder Uitbetaald';
+                            } else if (payment.reason.toLowerCase().includes('transporter')) {
+                                recipientLabel = '✅ Transporteur Uitbetaald';
+                            }
+                            
                             return `
                             <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 6px;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <strong style="color: #059669;">✅ Boer Uitbetaald</strong>
+                                    <strong style="color: #059669;">${recipientLabel}</strong>
                                     <span style="font-size: 14px; font-weight: bold; color: #047857;">${amount} USDT</span>
                                 </div>
                                 <div style="font-size: 13px; margin-top: 5px; color: #64748b;">
@@ -483,140 +496,125 @@ async function loadDPP() {
             </h3>
 
             <div style="background: white; border-radius: 12px; padding: 25px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px;">
-                <div style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
-                    <strong>Benadering:</strong> Percentage van de productiewaarde per stakeholder (Totaal: 100%)
-                </div>
-                
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
-                    <!-- Boer -->
-                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <span style="font-size: 28px;">👨‍🌾</span>
-                            <div>
-                                <div style="font-size: 14px; opacity: 0.9;">Boer</div>
-                                <div style="font-size: 32px; font-weight: bold;">6%</div>
+                ${(() => {
+                    // Calculate dynamic value chain distribution
+                    const stakeholders = [
+                        { name: 'Boer', icon: '👨‍🌾', color: '#10b981', amount: 0 },
+                        { name: 'Transporteur', icon: '🚚', color: '#3b82f6', amount: 0 },
+                        { name: 'Certificeerder', icon: '✅', color: '#8b5cf6', amount: 0 },
+                        { name: 'Inkoop Coöperatie', icon: '🏪', color: '#ec4899', amount: 0 },
+                        { name: 'Verwerking t/m Retail', icon: '🏭', color: '#f59e0b', amount: 0 }
+                    ];
+                    
+                    let totalPaid = 0;
+                    
+                    // Sum payments per stakeholder
+                    for (const payment of payments) {
+                        const amount = parseFloat(ethers.formatUnits(payment.amount, 6));
+                        totalPaid += amount;
+                        
+                        if (payment.reason.toLowerCase().includes('certified payment')) {
+                            stakeholders[0].amount += amount; // Boer
+                        } else if (payment.reason.toLowerCase().includes('transporter')) {
+                            stakeholders[1].amount += amount; // Transporteur
+                        } else if (payment.reason.toLowerCase().includes('certifier')) {
+                            stakeholders[2].amount += amount; // Certificeerder
+                        }
+                    }
+                    
+                    // Cooperative markup (10% of batch price)
+                    const cooperativeMarkup = totalPaid * 0.10;
+                    stakeholders[3].amount = cooperativeMarkup;
+                    
+                    // Processing gets 60% of total chain value
+                    // Total paid so far is 40%, so 100% = totalPaid / 0.4
+                    const totalChainValue = (totalPaid + cooperativeMarkup) / 0.4;
+                    const processingAmount = totalChainValue * 0.60;
+                    stakeholders[4].amount = processingAmount;
+                    
+                    const grandTotal = totalPaid + cooperativeMarkup + processingAmount;
+                    
+                    // Calculate percentages
+                    stakeholders.forEach(s => {
+                        s.percent = ((s.amount / grandTotal) * 100).toFixed(1);
+                    });
+                    
+                    let html = `
+                        <div style="color: #64748b; font-size: 14px; margin-bottom: 20px;">
+                            <strong>Werkelijke verdeling:</strong> Gebaseerd op daadwerkelijke betalingen (Totaal: ${grandTotal.toFixed(2)} USDT = 100%)
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                    `;
+                    
+                    stakeholders.forEach(s => {
+                        html += `
+                            <div style="background: linear-gradient(135deg, ${s.color} 0%, ${s.color}dd 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px ${s.color}33;">
+                                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                    <span style="font-size: 28px;">${s.icon}</span>
+                                    <div>
+                                        <div style="font-size: 14px; opacity: 0.9;">${s.name}</div>
+                                        <div style="font-size: 32px; font-weight: bold;">${s.percent}%</div>
+                                    </div>
+                                </div>
+                                <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: white; height: 100%; width: ${s.percent}%;"></div>
+                                </div>
+                                <div style="font-size: 12px; margin-top: 8px; opacity: 0.9;">
+                                    ${s.amount.toFixed(2)} USDT
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div>';
+                    
+                    // Visual bar chart
+                    html += `
+                        <div style="margin-top: 30px;">
+                            <div style="color: #1e293b; font-weight: 600; margin-bottom: 15px; font-size: 16px;">
+                                📊 Visuele Verdeling (Totaal: 100%)
+                            </div>
+                            <div style="display: flex; height: 40px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    `;
+                    
+                    stakeholders.forEach(s => {
+                        html += `
+                            <div style="background: ${s.color}; width: ${s.percent}%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="${s.name} - ${s.percent}%">
+                                ${parseFloat(s.percent) > 5 ? s.percent + '%' : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    html += '</div><div style="display: flex; margin-top: 8px; font-size: 11px; color: #64748b;">';
+                    
+                    stakeholders.forEach(s => {
+                        html += `<div style="width: ${s.percent}%; text-align: center;">${s.icon}</div>`;
+                    });
+                    
+                    html += `
                             </div>
                         </div>
-                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: white; height: 100%; width: 6%;"></div>
+                        <div style="margin-top: 25px; padding: 15px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
+                            <strong style="color: #1e40af;">💡 Toelichting:</strong>
+                            <p style="margin: 8px 0 0 0; color: #475569; font-size: 14px; line-height: 1.6;">
+                                Deze percentages tonen de daadwerkelijke waarde-verdeling voor deze batch. De verwerking tot en met retail (60%) 
+                                krijgt het grootste deel omdat daar de meeste toegevoegde waarde ontstaat (verwerking, design, branding, marketing, retail). 
+                                Door blockchain-gebaseerde transparantie zie je exact hoeveel elke stakeholder ontvangt.
+                            </p>
                         </div>
-                    </div>
+                    `;
+                    
+                    return html;
+                })()}
+            </div>`;
+        
+        // Remove old static HTML code by finding the end of this section
+        html = html.replace(/<div style="display: grid; grid-template-columns: repeat\(auto-fit, minmax\(250px, 1fr\)\); gap: 15px;">[\s\S]*?<\/div>\s*<\/div>/m, '');
+        
+        html += `
 
-                    <!-- Transport -->
-                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <span style="font-size: 28px;">🚚</span>
-                            <div>
-                                <div style="font-size: 14px; opacity: 0.9;">Transport</div>
-                                <div style="font-size: 32px; font-weight: bold;">10%</div>
-                            </div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: white; height: 100%; width: 10%;"></div>
-                        </div>
-                    </div>
 
-                    <!-- Verwerker (Ginning) -->
-                    <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <span style="font-size: 28px;">🏭</span>
-                            <div>
-                                <div style="font-size: 14px; opacity: 0.9;">Verwerker (Ginning)</div>
-                                <div style="font-size: 32px; font-weight: bold;">8%</div>
-                            </div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: white; height: 100%; width: 8%;"></div>
-                        </div>
-                    </div>
 
-                    <!-- Spinnerij (Garen) -->
-                    <div style="background: linear-gradient(135deg, #ec4899 0%, #db2777 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(236, 72, 153, 0.3);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <span style="font-size: 28px;">🧵</span>
-                            <div>
-                                <div style="font-size: 14px; opacity: 0.9;">Spinnerij (Garen)</div>
-                                <div style="font-size: 32px; font-weight: bold;">15%</div>
-                            </div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: white; height: 100%; width: 15%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- Weverij (Stof) -->
-                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <span style="font-size: 28px;">🪡</span>
-                            <div>
-                                <div style="font-size: 14px; opacity: 0.9;">Weverij (Stof)</div>
-                                <div style="font-size: 32px; font-weight: bold;">18%</div>
-                            </div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: white; height: 100%; width: 18%;"></div>
-                        </div>
-                    </div>
-
-                    <!-- Confectiefabriek -->
-                    <div style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 10px; padding: 20px; color: white; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
-                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                            <span style="font-size: 28px;">👕</span>
-                            <div>
-                                <div style="font-size: 14px; opacity: 0.9;">Confectiefabriek</div>
-                                <div style="font-size: 32px; font-weight: bold;">43%</div>
-                            </div>
-                        </div>
-                        <div style="background: rgba(255,255,255,0.2); height: 8px; border-radius: 4px; overflow: hidden;">
-                            <div style="background: white; height: 100%; width: 43%;"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Visual Bar Chart -->
-                <div style="margin-top: 30px;">
-                    <div style="color: #1e293b; font-weight: 600; margin-bottom: 15px; font-size: 16px;">
-                        📊 Visuele Verdeling (Totaal: 100%)
-                    </div>
-                    <div style="display: flex; height: 40px; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                        <div style="background: #10b981; width: 6%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Boer - 6%">
-                            6%
-                        </div>
-                        <div style="background: #3b82f6; width: 10%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Transport - 10%">
-                            10%
-                        </div>
-                        <div style="background: #8b5cf6; width: 8%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Verwerker - 8%">
-                            8%
-                        </div>
-                        <div style="background: #ec4899; width: 15%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Spinnerij - 15%">
-                            15%
-                        </div>
-                        <div style="background: #f59e0b; width: 18%; display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: bold;" title="Weverij - 18%">
-                            18%
-                        </div>
-                        <div style="background: #ef4444; width: 43%; display: flex; align-items: center; justify-content: center; color: white; font-size: 12px; font-weight: bold;" title="Confectiefabriek - 43%">
-                            43%
-                        </div>
-                    </div>
-                    <div style="display: flex; margin-top: 8px; font-size: 11px; color: #64748b;">
-                        <div style="width: 6%; text-align: center;">👨‍🌾</div>
-                        <div style="width: 10%; text-align: center;">🚚</div>
-                        <div style="width: 8%; text-align: center;">🏭</div>
-                        <div style="width: 15%; text-align: center;">🧵</div>
-                        <div style="width: 18%; text-align: center;">🪡</div>
-                        <div style="width: 43%; text-align: center;">👕</div>
-                    </div>
-                </div>
-
-                <div style="margin-top: 25px; padding: 15px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #3b82f6;">
-                    <strong style="color: #1e40af;">💡 Toelichting:</strong>
-                    <p style="margin: 8px 0 0 0; color: #475569; font-size: 14px; line-height: 1.6;">
-                        Deze percentages tonen de gemiddelde waarde-verdeling in de katoenketen. De confectiefabriek heeft het hoogste percentage 
-                        omdat daar de grootste toegevoegde waarde ontstaat (design, branding, marketing, retail). De boer krijgt een relatief klein 
-                        percentage, maar door blockchain-gebaseerde transparantie en directe betaling wordt eerlijke handel gestimuleerd.
-                    </p>
-                </div>
-            </div>
 
             <h3 style="color: #1e293b; font-size: 22px; margin-top: 30px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
                 <span>�🗺️</span> Supply Chain Tijdlijn
@@ -625,63 +623,211 @@ async function loadDPP() {
             <div class="timeline">
         `;
 
-        // Step 1: Batch Creation (Farmer)
-        const createdDate = new Date(Number(batch.createdAt.toString()) * 1000);
+        // Collect all timeline events chronologically
+        const timelineEvents = [];
+        
+        // Event: Batch Creation
+        timelineEvents.push({
+            type: 'created',
+            timestamp: Number(batch.createdAt.toString()),
+            icon: '👨‍🌾',
+            title: 'Katoenoogst bij Boer',
+            stakeholder: farmerInfo,
+            content: `Biologische katoen geoogst. Batch van ${batch.weight.toString()}kg met kwaliteit ${batch.quality.toString()}/100.`,
+            data: {
+                'Locatie': batch.origin,
+                'Hoeveelheid': `${batch.weight.toString()} kg`,
+                'Kwaliteit': `${batch.quality.toString()}/100`,
+                'VCs': farmerVCs.length > 0 ? `${farmerVCs.length} certificaten` : 'Geen'
+            }
+        });
+        
+        // Events: IoT Records - Group by transport route
+        const iotCountNum = Number(iotCount.toString());
+        if (iotCountNum > 0) {
+            // Group IoT records into transport phases (every 3 records = 1 transport)
+            const transportPhases = [];
+            for (let i = 0; i < iotCountNum; i += 3) {
+                const phaseRecords = [];
+                for (let j = i; j < Math.min(i + 3, iotCountNum); j++) {
+                    phaseRecords.push(await dppContract.getIoTData(batchId, j));
+                }
+                
+                if (phaseRecords.length > 0) {
+                    const firstRecord = phaseRecords[0];
+                    const lastRecord = phaseRecords[phaseRecords.length - 1];
+                    const transporterInfo = await getStakeholderInfo(firstRecord.recorder, "Transporteur/Verwerking");
+                    
+                    // Determine route and destination stakeholder
+                    let routeName = 'Transport';
+                    let destinationStakeholder = 'Onbekende Bestemming';
+                    let destinationIcon = '📦';
+                    
+                    if (firstRecord.location.includes('Gujarat') || firstRecord.location.includes(batch.origin)) {
+                        routeName = 'Transport: Boer → Inkoop Coöperatie';
+                        destinationStakeholder = 'Inkoop Coöperatie';
+                        destinationIcon = '🏪';
+                    } else if (lastRecord.location.includes('Mumbai') && !lastRecord.location.includes('Delhi')) {
+                        routeName = 'Transport naar Opslag Mumbai';
+                        destinationStakeholder = 'Inkoop Coöperatie (Opslag)';
+                        destinationIcon = '🏪';
+                    } else if (firstRecord.location.includes('Mumbai') && lastRecord.location.includes('Delhi')) {
+                        routeName = 'Transport: Mumbai → Verwerking New Delhi';
+                        destinationStakeholder = 'Verwerking tot en met Retail';
+                        destinationIcon = '🏭';
+                    }
+                    
+                    // Calculate temp range
+                    const temps = phaseRecords.map(r => Number(r.temperature.toString()));
+                    const minTemp = Math.min(...temps);
+                    const maxTemp = Math.max(...temps);
+                    const avgTemp = Math.round(temps.reduce((a, b) => a + b, 0) / temps.length);
+                    
+                    // Build IoT details for content
+                    let iotDetailsHtml = '<div style="margin-top: 10px;">';
+                    phaseRecords.forEach((rec, idx) => {
+                        iotDetailsHtml += `
+                            <div style="padding: 8px; background: #f8fafc; border-radius: 4px; margin-top: 5px;">
+                                <strong>📡 Meetpunt ${idx + 1}:</strong> ${rec.location}<br>
+                                <span style="font-size: 13px; color: #64748b;">
+                                    🌡️ ${rec.temperature.toString()}°C | 💧 ${rec.humidity.toString()}%
+                                </span>
+                            </div>
+                        `;
+                    });
+                    iotDetailsHtml += '</div>';
+                    
+                    timelineEvents.push({
+                        type: 'transport',
+                        timestamp: Number(firstRecord.timestamp.toString()),
+                        icon: '�',
+                        title: routeName,
+                        stakeholder: transporterInfo,
+                        content: `Transport met ${phaseRecords.length} IoT sensor readings. Route volledig gemonitord.${iotDetailsHtml}`,
+                        data: {
+                            'Van': firstRecord.location,
+                            'Naar': lastRecord.location,
+                            'Afstand': `~${phaseRecords.length * 100}km`,
+                            'Temperatuur': `${minTemp}°C - ${maxTemp}°C (Gem: ${avgTemp}°C)`
+                        },
+                        iotRecords: phaseRecords
+                    });
+                    
+                    // Add arrival event with stakeholder
+                    timelineEvents.push({
+                        type: 'arrival',
+                        timestamp: Number(lastRecord.timestamp.toString()) + 1,
+                        icon: destinationIcon,
+                        title: `Aangekomen bij ${destinationStakeholder}`,
+                        stakeholder: { naam: destinationStakeholder, bedrijfsnaam: '' },
+                        content: `Batch succesvol overgedragen aan ${destinationStakeholder}.`,
+                        data: {
+                            'Ontvanger': destinationStakeholder,
+                            'Eindlocatie': lastRecord.location,
+                            'Status': '✅ Ontvangen'
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Events: Payments
+        for (const payment of payments) {
+            let recipientName = 'Stakeholder';
+            let icon = '💰';
+            if (payment.reason.toLowerCase().includes('certified payment')) {
+                recipientName = 'Boer';
+                icon = '👨‍🌾';
+            } else if (payment.reason.toLowerCase().includes('transporter')) {
+                recipientName = 'Transporteur';
+                icon = '🚚';
+            } else if (payment.reason.toLowerCase().includes('certifier')) {
+                recipientName = 'Certificeerder';
+                icon = '✅';
+            }
+            
+            timelineEvents.push({
+                type: 'payment',
+                timestamp: Number(payment.timestamp.toString()),
+                icon: '💰',
+                title: `Betaling aan ${recipientName}`,
+                stakeholder: { naam: recipientName, bedrijfsnaam: '' },
+                content: `${ethers.formatUnits(payment.amount, 6)} USDT - ${payment.reason}`,
+                data: {
+                    'Bedrag': `${ethers.formatUnits(payment.amount, 6)} USDT`,
+                    'Reden': payment.reason
+                }
+            });
+        }
+        
+        // Add final product event (always last)
+        const finalTimestamp = timelineEvents.length > 0 ? 
+            Math.max(...timelineEvents.map(e => e.timestamp)) + 86400 : // +1 day after last event
+            Number(batch.createdAt.toString()) + 604800; // +1 week if no events
+            
+        timelineEvents.push({
+            type: 'final',
+            timestamp: finalTimestamp,
+            icon: '👕',
+            title: 'Eindproduct Gereed',
+            stakeholder: { naam: 'Verwerking t/m Retail', bedrijfsnaam: 'GreenWear Sustainable' },
+            content: `Biologisch katoen verwerkt tot hoogwaardig T-shirt. Productie compleet en klaar voor verkoop. Kwaliteitscontrole succesvol afgerond.`,
+            data: {
+                'Eindkwaliteit': `${finalQuality}/100 ${finalQuality >= 90 ? '- Uitstekend ✨' : finalQuality >= 70 ? '- Goed ✅' : '- Voldoende ✓'}`,
+                'Originele Kwaliteit': `${batchQuality}/100`,
+                'Product': 'Biologisch Katoen T-Shirt',
+                'Maat': 'M (Medium) - Unisex',
+                'Merk': 'GreenWear Sustainable',
+                'Status': '✅ Klaar voor verkoop'
+            }
+        });
+        
+        // Sort chronologically
+        timelineEvents.sort((a, b) => a.timestamp - b.timestamp);
+        
+        // Render timeline
+        timelineEvents.forEach((event, index) => {
+            const eventDate = new Date(event.timestamp * 1000);
+            
+            html += `
+                <div class="timeline-item">
+                    <div class="timeline-header">
+                        <div>
+                            <div class="timeline-title">${event.icon} Stap ${index + 1}: ${event.title}</div>
+                            ${event.stakeholder.naam ? `
+                                <div style="color: #64748b; font-size: 14px; margin-top: 5px;">
+                                    ${event.stakeholder.naam}${event.stakeholder.bedrijfsnaam ? ` - ${event.stakeholder.bedrijfsnaam}` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
+                            <div class="timeline-date">📅 ${eventDate.toLocaleDateString('nl-NL')} ${eventDate.toLocaleTimeString('nl-NL', {hour: '2-digit', minute: '2-digit'})}</div>
+                        </div>
+                    </div>
+                    <div class="timeline-content">
+                        ${event.content}
+                    </div>
+                    <div class="timeline-data">
+                        ${Object.entries(event.data).map(([key, value]) => `
+                            <div class="data-badge">
+                                <strong>${key}</strong>
+                                <span>${value}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        });
+
+        // Close timeline
         html += `
-            <div class="timeline-item">
-                <div class="timeline-header">
-                    <div>
-                        <div class="timeline-title">👨‍🌾 Stap 1: Katoenoogst bij Boer</div>
-                        <div style="color: #64748b; font-size: 14px; margin-top: 5px;">
-                            ${farmerInfo.naam} - ${farmerInfo.bedrijfsnaam}
-                        </div>
-                        <div style="color: #94a3b8; font-size: 13px; margin-top: 3px;">
-                            📍 ${farmerInfo.location}
-                        </div>
-                        <div class="action-buttons">
-                            <button type="button" class="action-btn" onclick="window.open('https://www.boerboer.nl/','_blank')">Bekijk</button>
-                            <button type="button" class="action-btn donate" onclick="window.open('https://example.org/doneer','_blank')">Doneren</button>
-                        </div>
-                    </div>
-                    <div style="display:flex; flex-direction:column; gap:8px; align-items:flex-end;">
-                        <div class="timeline-date" style="text-align: center;">💨 CO2: ${co2Farm}kg | 💧 Water: ${waterFarm}L</div>
-                        <div class="timeline-date">📅 ${createdDate.toLocaleDateString('nl-NL')}</div>
-                    </div>
-                </div>
-                <div class="timeline-content">
-                    Biologische katoen geoogst op gecertificeerde boerderij. Deze batch van ${batch.weight.toString()}kg voldoet aan alle bio-certificeringen en is geteeld zonder pesticides.
-                </div>
-                <div class="timeline-data">
-                    <div class="data-badge">
-                        <strong>Locatie</strong>
-                        <span>23.0225° N, 72.5714° E</span>
-                    </div>
-                    <div class="data-badge">
-                        <strong>Hoeveelheid</strong>
-                        <span>${batch.weight.toString()} kg ruwe katoen</span>
-                    </div>
-                    <div class="data-badge">
-                        <strong>Katoensoort</strong>
-                        <span>Gossypium hirsutum</span>
-                    </div>
-                    <div class="data-badge">
-                        <strong>Kwaliteitsscore</strong>
-                        <span>${batch.quality.toString()}/100 ${Number(batch.quality.toString()) >= 90 ? '- Uitstekend' : Number(batch.quality.toString()) >= 70 ? '- Goed' : '- Voldoende'}</span>
-                    </div>
-                    <div class="data-badge">
-                        <strong>Verifiable Credentials</strong>
-                        <span>${farmerVCs.length > 0 ? farmerVCs.map(vc => `VC #${vc.id}`).join(', ') : 'Geen VCs'}</span>
-                    </div>
-                    <div class="data-badge">
-                        <strong>Blockchain TX</strong>
-                        <span>0x${batch.farmer.substring(2, 8)}...${batch.farmer.substring(38)}</span>
-                    </div>
-                </div>
             </div>
         `;
 
-        // Step 2: Transport with IoT (if data exists)
-        if (Number(iotCount.toString()) > 0) {
+        // OLD STATIC CODE - DISABLED
+        if (false) {
+        // All old timeline code disabled
+        if (Number(iotCount.toString()) > -1) {
             // Get first and last IoT record
             const iotCountNum = Number(iotCount.toString());
             const firstIoT = await dppContract.getIoTData(batchId, 0);
@@ -885,9 +1031,9 @@ async function loadDPP() {
                 `;
             }
         }
+        } // END OLD TIMELINE CODE
 
         html += `
-            </div>
 
             <div class="verification-section">
                 <h3>✅ Blockchain Verificatie</h3>
