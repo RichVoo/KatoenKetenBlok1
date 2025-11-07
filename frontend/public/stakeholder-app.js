@@ -102,7 +102,7 @@ async function importCustomWallet() {
         const address = wallet.address;
         
         // Check if this wallet has a DID
-        const tempDpp = new ethers.Contract(CONTRACTS.IntegratedCottonDPP, DPP_ABI, wallet);
+        const tempDpp = new ethers.Contract(CONTRACTS.CottonDPP, DPP_ABI, wallet);
         const hasDID = await tempDpp.hasDID(address);
         
         if (!hasDID) {
@@ -180,7 +180,7 @@ async function selectCustomRole() {
     document.querySelectorAll('.dashboard').forEach(d => d.classList.remove('active'));
     document.querySelectorAll('.role-card').forEach(c => c.classList.remove('active'));
     
-    const customAccounts = TEST_ACCOUNTS.filter(a => a.type === 'custom');
+    const customAccounts = TEST_ACCOUNTS.filter(a => a && a.type === 'custom');
     if (customAccounts.length === 0) {
         alert('⚠️ Geen custom wallet geïmporteerd! Import eerst een wallet met je private key.');
         return;
@@ -198,7 +198,7 @@ async function selectCustomRole() {
     try {
         // Get actual DID type from blockchain
         const tempProvider = new ethers.JsonRpcProvider(RPC_URL);
-        const tempDpp = new ethers.Contract(CONTRACTS.IntegratedCottonDPP, DPP_ABI, tempProvider);
+        const tempDpp = new ethers.Contract(CONTRACTS.CottonDPP, DPP_ABI, tempProvider);
         const didInfo = await tempDpp.dids(account.address);
         
         console.log('📋 DID Info from blockchain:', didInfo);
@@ -591,7 +591,7 @@ async function farmerLoadVCs() {
     
     try {
         console.log('🔍 Fetching VCs for account:', currentAccount);
-        console.log('🔗 DPP Contract:', CONTRACTS.IntegratedCottonDPP);
+        console.log('🔗 DPP Contract:', CONTRACTS.CottonDPP);
         
         // Get all VC IDs for this farmer
         const vcIds = await dpp.getSubjectVCs(currentAccount);
@@ -1053,7 +1053,7 @@ async function factoryPayFarmer() {
         const amountWei = ethers.parseUnits(totalAmount.toString(), 6);
         
         showInfo(result, `Stap 1: USDT goedkeuren (${totalAmount.toFixed(2)} USDT)...`);
-        const approveTx = await usdt.approve(CONTRACTS.IntegratedCottonDPP, amountWei);
+        const approveTx = await usdt.approve(CONTRACTS.CottonDPP, amountWei);
         await approveTx.wait();
         
         showInfo(result, `Stap 2: Betaling uitvoeren...`);
@@ -1173,7 +1173,7 @@ async function factoryMarkAsDeliveredAndPay() {
         const amountWei = ethers.parseUnits(totalAmount.toString(), 6);
         
         showInfo(result, `Stap 1: USDT goedkeuren (${totalAmount.toFixed(2)} USDT)...`);
-        const approveTx = await usdt.approve(CONTRACTS.IntegratedCottonDPP, amountWei);
+        const approveTx = await usdt.approve(CONTRACTS.CottonDPP, amountWei);
         await approveTx.wait();
         
         showInfo(result, `Stap 2: Betaling uitvoeren...`);

@@ -9,8 +9,12 @@ import {
     fetchAllDIDs,
     fetchDIDByAddress,
     registerDIDOnChain,
+    grantMarketplaceRole,
     getSubjectVCIds,
-    getCredential
+    getCredential,
+    fundWalletWithETH,
+    fundWalletWithUSDT,
+    resetNonceTracking
 } from './blockchain';
 import { ethers } from 'ethers';
 
@@ -26,15 +30,39 @@ app.use((req, res, next) => {
     next();
 });
 
-// Alle file-based opslag verwijderd: alles komt nu direct van de blockchain
-// Verificatie-flow vereenvoudigd tot directe on-chain registratie via admin sleutel
+// Verificatie codes (in-memory storage)
+interface VerificationRequest {
+    code: string;
+    naam: string;
+    bedrijfsnaam: string;
+    urn: string;
+    email: string;
+    telefoon: string;
+    role: string;
+    timestamp: number;
+}
+
+const verificationCodes = new Map<string, VerificationRequest>();
+let blockchainReady = false;
 
 function error(res: express.Response, status: number, msg: string) {
   return res.status(status).json({ error: msg });
 }
 
+function generateVerificationCode(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Middleware to check blockchain readiness
+function requireBlockchain(req: express.Request, res: express.Response, next: express.NextFunction) {
+    if (!blockchainReady) {
+        return error(res, 503, 'Blockchain not ready yet. Please wait a moment and try again.');
+    }
+    next();
+}
+
 // Nieuwe directe registratie: maakt lokale wallet + registreert direct on-chain
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', requireBlockchain, async (req, res) => {
     try {
         const { naam, bedrijfsnaam, urn, email, telefoon, role } = req.body;
         if (!naam || !bedrijfsnaam || !urn) return error(res, 400, 'Missing required fields');
@@ -44,8 +72,20 @@ app.post('/api/register', async (req, res) => {
         const did = wallet.did;
         const didType = role || 'farmer';
 
+        // Reset nonce tracking for fresh transaction sequence
+        resetNonceTracking();
+
         // Registreer direct on-chain (admin roept contract aan)
         const txHash = await registerDIDOnChain(wallet.address, didType, wallet.address);
+        
+        // Grant role in marketplace
+        await grantMarketplaceRole(wallet.address, didType);
+
+        // Fund wallet met ETH en USDT (voor testing)
+        console.log(`💰 Funding wallet ${wallet.address} with 1,000 ETH and 1,000 USDT...`);
+        await fundWalletWithETH(wallet.address, '1000');
+        await fundWalletWithUSDT(wallet.address, '1000');
+        console.log(`✅ Wallet funded successfully`);
 
         const didDocument = {
             '@context': 'https://www.w3.org/ns/did/v1',
@@ -93,16 +133,134 @@ app.post('/api/register-on-chain', async (_req, res) => {
   return res.json({ message: 'Direct registratie wordt al on-chain gedaan via /api/register', alreadyOnChain: true });
 });
 
-// Nieuwe flow: geen e-mail verificatie meer, endpoint disabled
-app.post('/api/request-verification', (_req, res) => {
-  return res.status(410).json({ error: 'Verification flow removed. Use /api/register directly.' });
+// Request verification code (doesn't need blockchain)
+app.post('/api/request-verification', async (req, res) => {
+    try {
+        const { naam, bedrijfsnaam, urn, email, telefoon, role } = req.body;
+        if (!naam || !bedrijfsnaam || !urn || !email) {
+            return error(res, 400, 'Missing required fields');
+        }
+
+        const code = generateVerificationCode();
+        const timestamp = Date.now();
+
+        verificationCodes.set(code, {
+            code,
+            naam,
+            bedrijfsnaam,
+            urn,
+            email,
+            telefoon: telefoon || email,
+            role: role || 'farmer',
+            timestamp
+        });
+
+        // Clean up old codes (older than 10 minutes)
+        const tenMinutesAgo = timestamp - 10 * 60 * 1000;
+        for (const [key, value] of verificationCodes.entries()) {
+            if (value.timestamp < tenMinutesAgo) {
+                verificationCodes.delete(key);
+            }
+        }
+
+        console.log(`📧 Verification code generated: ${code} for ${naam} (${email})`);
+        console.log(`   Role: ${role}, URN: ${urn}`);
+
+        res.json({
+            success: true,
+            code, // In productie zou je dit NIET returnen maar per email versturen
+            message: 'Verification code sent (check console)',
+            expiresIn: '10 minutes'
+        });
+    } catch (e: any) {
+        console.error('Error /api/request-verification', e);
+        error(res, 500, 'Failed to generate verification code: ' + e.message);
+    }
 });
 
-app.post('/api/verify-and-create-wallet', (_req, res) => {
-  return res.status(410).json({ error: 'Verification flow removed. Use /api/register.' });
+// Verify code and create wallet
+app.post('/api/verify-and-create-wallet', requireBlockchain, async (req, res) => {
+    try {
+        const { verificationCode } = req.body;
+        if (!verificationCode) {
+            return error(res, 400, 'Verification code required');
+        }
+
+        const request = verificationCodes.get(verificationCode);
+        if (!request) {
+            return error(res, 400, 'Invalid or expired verification code');
+        }
+
+        // Check if code is expired (10 minutes)
+        const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+        if (request.timestamp < tenMinutesAgo) {
+            verificationCodes.delete(verificationCode);
+            return error(res, 400, 'Verification code expired');
+        }
+
+        // Create wallet and register on-chain
+        const wallet = await createWallet();
+        const did = wallet.did;
+
+        // Reset nonce tracking for fresh transaction sequence
+        resetNonceTracking();
+
+        // Register on-chain
+        const txHash = await registerDIDOnChain(wallet.address, request.role, wallet.address);
+        
+        // Grant role in marketplace
+        await grantMarketplaceRole(wallet.address, request.role);
+
+        // Fund wallet met ETH en USDT (voor testing)
+        console.log(`💰 Funding wallet ${wallet.address} with 1,000 ETH and 1,000 USDT...`);
+        await fundWalletWithETH(wallet.address, '1000');
+        await fundWalletWithUSDT(wallet.address, '1000');
+        console.log(`✅ Wallet funded successfully`);
+
+        const didDocument = {
+            '@context': 'https://www.w3.org/ns/did/v1',
+            id: did,
+            verificationMethod: [
+                {
+                    id: `${did}#key-1`,
+                    type: 'EcdsaSecp256k1VerificationKey2019',
+                    controller: did,
+                    blockchainAccountId: `eip155:1337:${wallet.address}`
+                }
+            ],
+            authentication: [`${did}#key-1`],
+            created: new Date().toISOString()
+        };
+
+        const response = {
+            did,
+            walletAddress: wallet.address,
+            privateKey: wallet.privateKey,
+            urn: request.urn,
+            naam: request.naam,
+            bedrijfsnaam: request.bedrijfsnaam,
+            email: request.email,
+            telefoon: request.telefoon,
+            didType: request.role,
+            didDocument,
+            timestamp: new Date().toISOString(),
+            txHash,
+            verified: true,
+            onChain: true
+        };
+
+        // Remove used code
+        verificationCodes.delete(verificationCode);
+
+        console.log(`✅ Wallet created & registered on-chain: ${did} (${request.role}) tx=${txHash}`);
+        res.json(response);
+    } catch (e: any) {
+        console.error('Error /api/verify-and-create-wallet', e);
+        error(res, 500, 'Wallet creation failed: ' + e.message);
+    }
 });
 
-app.get('/api/registrations', async (_req, res) => {
+app.get('/api/registrations', requireBlockchain, async (_req, res) => {
     try {
         const dids = await fetchAllDIDs();
         const mapped = dids.map(d => ({
@@ -269,8 +427,45 @@ app.get('/api/vcs/:address', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
-    console.log(`DID Service running on port ${PORT}`);
+
+// Wait for blockchain to be ready
+async function waitForBlockchain(maxRetries = 30, delayMs = 1000): Promise<boolean> {
+    const { provider, CONTRACT_ADDRESS } = await import('./blockchain');
+    
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            // Test blockchain connection
+            await provider.getNetwork();
+            
+            // Test contract
+            const code = await provider.getCode(CONTRACT_ADDRESS);
+            if (code !== '0x') {
+                console.log('✅ Blockchain and contract are ready!');
+                return true;
+            }
+            console.log(`⏳ Contract not deployed yet, waiting... (${i + 1}/${maxRetries})`);
+        } catch (error) {
+            console.log(`⏳ Waiting for blockchain... (${i + 1}/${maxRetries})`);
+        }
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+    return false;
+}
+
+// Start server
+app.listen(PORT, async () => {
+    console.log(`🚀 DID Service starting on port ${PORT}`);
     console.log(`API: http://localhost:${PORT}`);
     console.log(`Health: http://localhost:${PORT}/health`);
+    console.log('');
+    console.log('Waiting for blockchain to be ready...');
+    
+    const ready = await waitForBlockchain();
+    if (ready) {
+        blockchainReady = true;
+        console.log('✅ DID Service fully operational!');
+    } else {
+        console.log('⚠️ DID Service started but blockchain connection failed');
+        console.log('   Requests may fail until blockchain is available');
+    }
 });

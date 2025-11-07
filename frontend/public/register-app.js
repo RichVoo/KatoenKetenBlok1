@@ -38,6 +38,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const roleClass = `role-${reg.role || 'farmer'}`;
                 const roleNames = {
                     farmer: '🌾 Boer',
+                    transporter: '🚚 Transporteur',
+                    certifier: '🔍 Certificeerder',
+                    factory: '🏭 Inkoop Coöperatie',
+                    processing: '👕 Verwerking t/m Retail',
                     processor: '🏭 Verwerker',
                     manufacturer: '🏗️ Fabrikant',
                     retailer: '🏪 Detailhandelaar',
@@ -81,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 urn,
                 email: contact,
                 telefoon: contact,
-                didType: role
+                role: role
             });
 
             console.log('✅ Verification code sent:', result.code);
@@ -110,17 +114,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 verificationCode: code
             });
 
-            console.log('Step 2: Registering on-chain...', registration.walletAddress);
-            const onChainResult = await postJson(`${API_URL}/api/register-on-chain`, {
-                walletAddress: registration.walletAddress
-            });
-
-            console.log('Registration complete!', onChainResult);
+            console.log('✅ Registration complete with txHash:', registration.txHash);
             
             document.getElementById('out-did').textContent = registration.did;
             document.getElementById('out-address').textContent = registration.walletAddress;
             document.getElementById('out-key').textContent = registration.privateKey;
-            document.getElementById('out-tx').textContent = onChainResult.txHash || 'n.v.t.';
+            document.getElementById('out-tx').textContent = registration.txHash || 'n.v.t.';
 
             show('result-step');
             loadDIDs();
@@ -134,52 +133,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Back button
     document.getElementById('backBtn').addEventListener('click', () => {
         show('form-step');
-    });
-
-    document.getElementById("registerBtn").addEventListener("click", async () => {
-        const naam = document.getElementById("naam").value.trim();
-        const bedrijfsnaam = document.getElementById("bedrijfsnaam").value.trim();
-        const urn = document.getElementById("urn").value.trim();
-        const contact = document.getElementById("contact").value.trim();
-        const role = document.getElementById("role").value;
-
-        if (!naam || !bedrijfsnaam || !urn) {
-            alert("Vul naam, bedrijfsnaam en URN in");
-            return;
-        }
-
-        show("progress-step");
-
-        try {
-            console.log("Step 1: Creating wallet and DID...");
-            const registration = await postJson(`${API_URL}/api/register`, {
-                naam,
-                bedrijfsnaam,
-                urn,
-                email: contact,
-                telefoon: contact,
-                role: role
-            });
-
-            console.log("Step 2: Registering on-chain...", registration.walletAddress);
-            const onChainResult = await postJson(`${API_URL}/api/register-on-chain`, {
-                walletAddress: registration.walletAddress
-            });
-
-            console.log("Registration complete!", onChainResult);
-            
-            document.getElementById("out-did").textContent = registration.did;
-            document.getElementById("out-address").textContent = registration.walletAddress;
-            document.getElementById("out-key").textContent = registration.privateKey;
-            document.getElementById("out-tx").textContent = onChainResult.txHash || "n.v.t.";
-
-            show("result-step");
-            loadDIDs(); // Refresh the list
-        } catch (error) {
-            console.error("Registration error:", error);
-            alert("Error tijdens registratie: " + error.message);
-            show("form-step");
-        }
     });
 
     document.getElementById("newBtn").addEventListener("click", () => {

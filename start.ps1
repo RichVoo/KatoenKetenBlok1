@@ -17,7 +17,8 @@ $rootDir = Get-Location
 Write-Host '1. Starting Hardhat blockchain...' -ForegroundColor Cyan
 Start-InNewWindow -Title 'Hardhat Node' -Command 'npx hardhat node' -WorkingDirectory "$rootDir\contracts"
 
-Start-Sleep -Seconds 5
+Write-Host '   Waiting for blockchain to start...' -ForegroundColor Yellow
+Start-Sleep -Seconds 8
 
 Write-Host '2. Deploying contracts...' -ForegroundColor Cyan
 Set-Location contracts
@@ -30,7 +31,11 @@ Set-Location ..
 Start-Sleep -Seconds 3
 
 Write-Host '4. Starting DID Service...' -ForegroundColor Cyan
-Start-InNewWindow -Title 'DID Service (Port 3002)' -Command 'npm start' -WorkingDirectory "$rootDir\did-service"
+Set-Location did-service
+Write-Host '   Compiling TypeScript...' -ForegroundColor Yellow
+npx tsc
+Set-Location ..
+Start-InNewWindow -Title 'DID Service (Port 3002)' -Command 'node dist/server.js' -WorkingDirectory "$rootDir\did-service"
 
 Start-Sleep -Seconds 3
 
